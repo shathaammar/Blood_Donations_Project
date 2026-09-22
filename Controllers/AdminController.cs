@@ -1,4 +1,5 @@
-﻿using Blood_Donations_Project.Models;
+﻿using Blood_Donations_Project.Filters;
+using Blood_Donations_Project.Models;
 using Blood_Donations_Project.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,7 @@ using System.Data;
 
 namespace Blood_Donations_Project.Controllers
 {
+    [SessionAuthorize(AppRoles.Admin)]
     public class AdminController : Controller
     {
         private readonly BloodDonationContext _context;
@@ -14,12 +16,6 @@ namespace Blood_Donations_Project.Controllers
         public AdminController(BloodDonationContext context)
         {
             _context = context;
-        }
-
-        private bool IsAdmin()
-        {
-            var role = HttpContext.Session.GetString("UserRole") ?? "";
-            return role == "Admin";
         }
 
         private int CalculateAge(DateTime dob)
@@ -30,6 +26,7 @@ namespace Blood_Donations_Project.Controllers
             return age;
         }
 
+        [SessionAuthorize]
         public async Task<IActionResult> Dashboard(string table = "BloodRequests", string status = "All")
         {
             var userIdStr = HttpContext.Session.GetString("UserId");
@@ -157,8 +154,6 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> Users()
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
-
             var users = await _context.Users
                 .Include(u => u.Role)
                 .Include(u => u.Donors).ThenInclude(d => d.BloodType)
@@ -186,9 +181,6 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> EditUser(int id)
         {
-            if (!IsAdmin())
-                return RedirectToAction("Dashboard", "Home");
-
             var user = await _context.Users
                 .Include(u => u.Role)
                 .Include(u => u.Donors)
@@ -226,9 +218,6 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUser(EditUser model)
         {
-            if (!IsAdmin())
-                return RedirectToAction("Dashboard", "Home");
-
             if (!ModelState.IsValid)
             {
                 ViewBag.BloodTypes = await _context.BloodTypes.ToListAsync();
@@ -266,11 +255,9 @@ namespace Blood_Donations_Project.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            if (!IsAdmin())
-                return Json(new { success = false, message = "Not authorized" });
-
             var myIdStr = HttpContext.Session.GetString("UserId");
             if (int.TryParse(myIdStr, out var myId) && myId == id)
             {
@@ -324,8 +311,6 @@ namespace Blood_Donations_Project.Controllers
 
         public async Task<IActionResult> Hospitals()
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
-
             var hospitals = await _context.Users
                 .Include(u => u.Role)
                 .Where(u => u.Role != null && u.Role.RoleName == "Hospital")
@@ -338,7 +323,6 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public IActionResult AddHospital()
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
             return View(new HospitalCreate());
         }
 
@@ -346,8 +330,6 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddHospital(HospitalCreate model)
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
-
             if (!ModelState.IsValid)
                 return View(model);
 
@@ -397,8 +379,6 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> EditHospital(int id)
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
-
             var user = await _context.Users
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.UserId == id);
@@ -424,8 +404,6 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditHospital(HospitalEdit model)
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
-
             if (!ModelState.IsValid)
                 return View(model);
 
@@ -465,8 +443,6 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteHospital(int id)
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
-
             var myIdStr = HttpContext.Session.GetString("UserId");
             if (int.TryParse(myIdStr, out var myId) && myId == id)
             {
@@ -531,6 +507,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveDonation(int id)
         {
             var adminIdStr = HttpContext.Session.GetString("UserId");
@@ -557,6 +534,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RejectDonation(int id)
         {
             var adminIdStr = HttpContext.Session.GetString("UserId");
@@ -611,6 +589,7 @@ namespace Blood_Donations_Project.Controllers
 
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveBloodRequest(int id)
         {
             var adminIdStr = HttpContext.Session.GetString("UserId");
@@ -649,6 +628,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RejectBloodRequest(int id)
         {
             var adminIdStr = HttpContext.Session.GetString("UserId");
@@ -670,6 +650,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> VerifyDonorMedical(int userId)
         {
             var adminIdStr = HttpContext.Session.GetString("UserId");
@@ -693,11 +674,9 @@ namespace Blood_Donations_Project.Controllers
 
         // Manage Donor Requests
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveDonorRequest(int id)
         {
-            if (!IsAdmin())
-                return Json(new { success = false, message = "Not authorized" });
-
             var adminIdStr = HttpContext.Session.GetString("UserId");
             int.TryParse(adminIdStr, out var adminId);
 
@@ -770,11 +749,9 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RejectDonorRequest(int id)
         {
-            if (!IsAdmin())
-                return Json(new { success = false, message = "Not authorized" });
-
             var adminIdStr = HttpContext.Session.GetString("UserId");
             int.TryParse(adminIdStr, out var adminId);
 
@@ -825,8 +802,6 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> BloodAvailability()
         {
-            if (!IsAdmin()) return RedirectToAction("Dashboard", "Home");
-
             var stock = await _context.BloodInventories
                 .Include(i => i.BloodType)
                 .OrderBy(i => i.BloodType!.TypeName)
@@ -848,10 +823,9 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> UpdateInventoryUnits([FromBody] InventoryUnitsDto dto)
         {
-            if (!IsAdmin()) return Json(new { success = false, message = "Not authorized" });
-
             if (dto.Units < 0) return Json(new { success = false, message = "Units must be >= 0" });
 
             var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == dto.Id);
@@ -864,10 +838,9 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> AddInventoryUnits([FromBody] InventoryAmountDto dto)
         {
-            if (!IsAdmin()) return Json(new { success = false, message = "Not authorized" });
-
             if (dto.Amount <= 0) return Json(new { success = false, message = "Amount must be > 0" });
 
             var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == dto.Id);
@@ -880,10 +853,9 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RemoveInventoryUnits([FromBody] InventoryAmountDto dto)
         {
-            if (!IsAdmin()) return Json(new { success = false, message = "Not authorized" });
-
             if (dto.Amount <= 0) return Json(new { success = false, message = "Amount must be > 0" });
 
             var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == dto.Id);

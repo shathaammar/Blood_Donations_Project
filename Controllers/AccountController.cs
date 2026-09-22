@@ -1,4 +1,5 @@
-﻿using Blood_Donations_Project.Models;
+﻿using Blood_Donations_Project.Filters;
+using Blood_Donations_Project.Models;
 using Blood_Donations_Project.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -216,6 +217,7 @@ namespace Blood_Donations_Project.Controllers
         // PROFILE 
 
         [HttpGet]
+        [SessionAuthorize]
         public async Task<IActionResult> Profile()
         {
             var userIdStr = HttpContext.Session.GetString("UserId");
@@ -265,6 +267,7 @@ namespace Blood_Donations_Project.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [SessionAuthorize]
         public async Task<IActionResult> Profile(Profile model)
         {
             var userIdStr = HttpContext.Session.GetString("UserId");

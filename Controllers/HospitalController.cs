@@ -1,4 +1,5 @@
-﻿using Blood_Donations_Project.Models;
+﻿using Blood_Donations_Project.Filters;
+using Blood_Donations_Project.Models;
 using Blood_Donations_Project.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Blood_Donations_Project.Controllers
 {
+    [SessionAuthorize(AppRoles.Hospital)]
     public class HospitalController : Controller
     {
         private readonly BloodDonationContext _context;

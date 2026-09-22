@@ -1,9 +1,11 @@
-﻿using Blood_Donations_Project.Models;
+﻿using Blood_Donations_Project.Filters;
+using Blood_Donations_Project.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blood_Donations_Project.Controllers
 {
+    [SessionAuthorize(AppRoles.Donor)]
     public class DonorController : Controller
     {
         private readonly BloodDonationContext _context;
