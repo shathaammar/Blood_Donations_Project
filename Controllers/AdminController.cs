@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using Blood_Donations_Project.ViewModels.Hospitals;
 
 namespace Blood_Donations_Project.Controllers
 {
@@ -15,11 +16,16 @@ namespace Blood_Donations_Project.Controllers
     {
         private readonly BloodDonationContext _context;
         private readonly IInventoryService _inventoryService;
+        private readonly IHospitalService _hospitalService;
 
-        public AdminController(BloodDonationContext context, IInventoryService inventoryService)
+        public AdminController(
+            BloodDonationContext context,
+            IInventoryService inventoryService,
+            IHospitalService hospitalService)
         {
             _context = context;
             _inventoryService = inventoryService;
+            _hospitalService = hospitalService;
         }
 
         private int CalculateAge(DateTime dob)
@@ -313,14 +319,10 @@ namespace Blood_Donations_Project.Controllers
 
         // Hospitals Management
 
+        [HttpGet]
         public async Task<IActionResult> Hospitals()
         {
-            var hospitals = await _context.Users
-                .Include(u => u.Role)
-                .Where(u => u.Role != null && u.Role.RoleName == "Hospital")
-                .OrderBy(u => u.UserId)
-                .ToListAsync();
-
+            var hospitals = await _hospitalService.GetHospitalsAsync();
             return View(hospitals);
         }
 
@@ -337,44 +339,16 @@ namespace Blood_Donations_Project.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            if (await _context.Users.AnyAsync(u => u.Email == model.Email))
+            var result = await _hospitalService.CreateHospitalAsync(model);
+
+            if (!result.Success)
             {
-                ModelState.AddModelError(nameof(model.Email), "Email already exists.");
+                ModelState.AddModelError(
+                    result.FieldName ?? string.Empty,
+                    result.Error ?? "An error occurred.");
+
                 return View(model);
             }
-
-            if (await _context.Users.AnyAsync(u => u.UserName == model.UserName))
-            {
-                ModelState.AddModelError(nameof(model.UserName), "UserName already exists.");
-                return View(model);
-            }
-
-            var hospitalRoleId = await _context.Roles
-                .Where(r => r.RoleName == "Hospital")
-                .Select(r => r.RoleId)
-                .FirstOrDefaultAsync();
-
-            if (hospitalRoleId == 0)
-            {
-                ModelState.AddModelError("", "Hospital role not found in Roles table.");
-                return View(model);
-            }
-
-            var user = new User
-            {
-                UserName = model.UserName,
-                FullName = model.FullName,
-                Email = model.Email,
-                MobileNo = model.MobileNo,
-                Address = model.Address,
-                RoleId = hospitalRoleId
-            };
-
-            var hasher = new PasswordHasher<User>();
-            user.Password = hasher.HashPassword(user, model.Password);
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
 
             TempData["Success"] = "Hospital account created successfully.";
             return RedirectToAction(nameof(Hospitals));
@@ -383,25 +357,12 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> EditHospital(int id)
         {
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserId == id);
+            var model = await _hospitalService.GetHospitalForEditAsync(id);
 
-            if (user == null) return NotFound();
-            if (!string.Equals(user.Role?.RoleName, "Hospital", StringComparison.OrdinalIgnoreCase))
+            if (model == null)
                 return NotFound();
 
-            var vm = new HospitalEdit
-            {
-                UserId = user.UserId,
-                UserName = user.UserName ?? "",
-                FullName = user.FullName ?? "",
-                Email = user.Email ?? "",
-                MobileNo = user.MobileNo,
-                Address = user.Address
-            };
-
-            return View(vm);
+            return View(model);
         }
 
         [HttpPost]
@@ -411,33 +372,19 @@ namespace Blood_Donations_Project.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserId == model.UserId);
+            var result = await _hospitalService.UpdateHospitalAsync(model);
 
-            if (user == null) return NotFound();
-            if (!string.Equals(user.Role?.RoleName, "Hospital", StringComparison.OrdinalIgnoreCase))
+            if (!result.Success && string.IsNullOrEmpty(result.Error))
                 return NotFound();
 
-            if (await _context.Users.AnyAsync(u => u.Email == model.Email && u.UserId != model.UserId))
+            if (!result.Success)
             {
-                ModelState.AddModelError(nameof(model.Email), "Email already exists.");
+                ModelState.AddModelError(
+                    result.FieldName ?? string.Empty,
+                    result.Error!);
+
                 return View(model);
             }
-
-            if (await _context.Users.AnyAsync(u => u.UserName == model.UserName && u.UserId != model.UserId))
-            {
-                ModelState.AddModelError(nameof(model.UserName), "UserName already exists.");
-                return View(model);
-            }
-
-            user.UserName = model.UserName;
-            user.FullName = model.FullName;
-            user.Email = model.Email;
-            user.MobileNo = model.MobileNo;
-            user.Address = model.Address;
-
-            await _context.SaveChangesAsync();
 
             TempData["Success"] = "Hospital updated successfully.";
             return RedirectToAction(nameof(Hospitals));
@@ -447,54 +394,28 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteHospital(int id)
         {
-            var myIdStr = HttpContext.Session.GetString("UserId");
-            if (int.TryParse(myIdStr, out var myId) && myId == id)
+            var userIdValue = HttpContext.Session.GetString("UserId");
+
+            if (!int.TryParse(userIdValue, out var currentUserId))
+                return RedirectToAction("Login", "Account");
+
+            var result = await _hospitalService.DeleteHospitalAsync(
+                id,
+                currentUserId);
+
+            if (!result.Success && string.IsNullOrEmpty(result.Error))
+                return NotFound();
+
+            if (!result.Success)
             {
-                TempData["Error"] = "You cannot delete your own account.";
+                TempData["Error"] =
+                    result.Error ?? "An error occurred.";
+
                 return RedirectToAction(nameof(Hospitals));
             }
 
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserId == id);
-
-            if (user == null) return NotFound();
-
-            if (!string.Equals(user.Role?.RoleName, "Hospital", StringComparison.OrdinalIgnoreCase))
-            {
-                TempData["Error"] = "This action is only for Hospital accounts.";
-                return RedirectToAction(nameof(Hospitals));
-            }
-
-            using var tx = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                var tokens = await _context.PasswordReset.Where(x => x.UserId == id).ToListAsync();
-                if (tokens.Any()) _context.PasswordReset.RemoveRange(tokens);
-
-                var bloodReqs = await _context.BloodRequests.Where(br => br.UserId == id).ToListAsync();
-                if (bloodReqs.Any()) _context.BloodRequests.RemoveRange(bloodReqs);
-
-                var donations = await _context.Donations.Where(d => d.UserId == id).ToListAsync();
-                if (donations.Any()) _context.Donations.RemoveRange(donations);
-
-                var userRoles = await _context.UserRoles.Where(ur => ur.UserId == id).ToListAsync();
-                if (userRoles.Any()) _context.UserRoles.RemoveRange(userRoles);
-
-                _context.Users.Remove(user);
-
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                TempData["Success"] = "Hospital deleted successfully.";
-                return RedirectToAction(nameof(Hospitals));
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                TempData["Error"] = "Failed to delete hospital. Please try again.";
-                return RedirectToAction(nameof(Hospitals));
-            }
+            TempData["Success"] = "Hospital deleted successfully.";
+            return RedirectToAction(nameof(Hospitals));
         }
 
         public async Task<IActionResult> ManageDonations()
