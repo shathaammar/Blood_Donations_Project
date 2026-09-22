@@ -16,9 +16,10 @@ namespace Blood_Donations_Project
             builder.Services.AddDbContext<BloodDonationContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            builder.Services.AddScoped<IInventoryService, InventoryService>();
+
             builder.Services.AddControllersWithViews();
 
-            // Session (ãÑÉ æÍÏÉ ÝÞØ)
             builder.Services.AddSession(options =>
             {
                 options.IdleTimeout = TimeSpan.FromMinutes(60);

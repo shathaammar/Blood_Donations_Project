@@ -1,6 +1,8 @@
 ﻿using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
+using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels;
+using Blood_Donations_Project.ViewModels.Inventory;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +14,12 @@ namespace Blood_Donations_Project.Controllers
     public class AdminController : Controller
     {
         private readonly BloodDonationContext _context;
+        private readonly IInventoryService _inventoryService;
 
-        public AdminController(BloodDonationContext context)
+        public AdminController(BloodDonationContext context, IInventoryService inventoryService)
         {
             _context = context;
+            _inventoryService = inventoryService;
         }
 
         private int CalculateAge(DateTime dob)
@@ -802,72 +806,41 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> BloodAvailability()
         {
-            var stock = await _context.BloodInventories
-                .Include(i => i.BloodType)
-                .OrderBy(i => i.BloodType!.TypeName)
-                .ToListAsync();
-
+            var stock = await _inventoryService.GetInventoryAsync();
             return View(stock);
         }
 
-        public class InventoryUnitsDto
+        [HttpPost]
+        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
+        public async Task<IActionResult> UpdateInventoryUnits([FromBody] InventoryUnitsRequest dto)
         {
-            public int Id { get; set; }
-            public int Units { get; set; }
-        }
+            if (!ModelState.IsValid)
+                return Json(new { success = false, message = "Invalid request" });
 
-        public class InventoryAmountDto
-        {
-            public int Id { get; set; }
-            public int Amount { get; set; }
+            var (success, message) = await _inventoryService.SetUnitsAsync(dto.Id, dto.Units);
+            return Json(new { success, message });
         }
 
         [HttpPost]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
-        public async Task<IActionResult> UpdateInventoryUnits([FromBody] InventoryUnitsDto dto)
+        public async Task<IActionResult> AddInventoryUnits([FromBody] InventoryAmountRequest dto)
         {
-            if (dto.Units < 0) return Json(new { success = false, message = "Units must be >= 0" });
+            if (!ModelState.IsValid)
+                return Json(new { success = false, message = "Invalid request" });
 
-            var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == dto.Id);
-            if (inv == null) return Json(new { success = false, message = "Inventory row not found" });
-
-            inv.UnitsAvailable = dto.Units;
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Units updated successfully" });
+            var (success, message) = await _inventoryService.AddUnitsAsync(dto.Id, dto.Amount);
+            return Json(new { success, message });
         }
 
         [HttpPost]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
-        public async Task<IActionResult> AddInventoryUnits([FromBody] InventoryAmountDto dto)
+        public async Task<IActionResult> RemoveInventoryUnits([FromBody] InventoryAmountRequest dto)
         {
-            if (dto.Amount <= 0) return Json(new { success = false, message = "Amount must be > 0" });
+            if (!ModelState.IsValid)
+                return Json(new { success = false, message = "Invalid request" });
 
-            var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == dto.Id);
-            if (inv == null) return Json(new { success = false, message = "Inventory row not found" });
-
-            inv.UnitsAvailable += dto.Amount;
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = $"+{dto.Amount} units added" });
-        }
-
-        [HttpPost]
-        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
-        public async Task<IActionResult> RemoveInventoryUnits([FromBody] InventoryAmountDto dto)
-        {
-            if (dto.Amount <= 0) return Json(new { success = false, message = "Amount must be > 0" });
-
-            var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == dto.Id);
-            if (inv == null) return Json(new { success = false, message = "Inventory row not found" });
-
-            if (inv.UnitsAvailable < dto.Amount)
-                return Json(new { success = false, message = "Not enough units to remove" });
-
-            inv.UnitsAvailable -= dto.Amount;
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = $"-{dto.Amount} units removed" });
+            var (success, message) = await _inventoryService.RemoveUnitsAsync(dto.Id, dto.Amount);
+            return Json(new { success, message });
         }
     }
 }
