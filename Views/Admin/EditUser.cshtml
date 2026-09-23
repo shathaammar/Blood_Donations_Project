@@ -1,8 +1,8 @@
-﻿@model Blood_Donations_Project.ViewModels.EditUser
+﻿@model Blood_Donations_Project.ViewModels.Donors.EditDonorViewModel
 
 @{
     ViewData["Title"] = "Edit User";
-    var bloodTypes = ViewBag.BloodTypes as IEnumerable<dynamic> ?? new List<dynamic>();
+    var bloodTypes = Model.BloodTypeOptions;
 }
 
 <div class="container mt-4">

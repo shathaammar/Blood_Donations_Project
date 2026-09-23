@@ -3,6 +3,7 @@ using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels;
+using Blood_Donations_Project.ViewModels.Donors;
 using Blood_Donations_Project.ViewModels.Inventory;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -18,15 +19,18 @@ namespace Blood_Donations_Project.Controllers
         private readonly BloodDonationContext _context;
         private readonly IInventoryService _inventoryService;
         private readonly IHospitalService _hospitalService;
+        private readonly IDonorManagementService _donorService;
 
         public AdminController(
             BloodDonationContext context,
             IInventoryService inventoryService,
-            IHospitalService hospitalService)
+            IHospitalService hospitalService,
+            IDonorManagementService donorService)
         {
             _context = context;
             _inventoryService = inventoryService;
             _hospitalService = hospitalService;
+            _donorService = donorService;
         }
 
         private int CalculateAge(DateTime dob)
@@ -165,100 +169,41 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> Users()
         {
-            var users = await _context.Users
-                .Include(u => u.Role)
-                .Include(u => u.Donors).ThenInclude(d => d.BloodType)
-                .Where(u => u.Role != null && u.Role.RoleName == "Donor")
-                .Select(u => new AdminUserRow
-                {
-                    UserId = u.UserId,
-                    FullName = u.FullName,
-                    UserName = u.UserName,
-                    Email = u.Email,
-                    MobileNo = u.MobileNo,
-                    Address = u.Address,
-                    DateOfBirth = u.DateOfBirth,
-                    Gender = u.Gender,
-                    BloodTypeName = u.Donors.Select(d => d.BloodType.TypeName).FirstOrDefault(),
-                    HealthStatus = u.Donors.Select(d => d.HealthStatus).FirstOrDefault()
-                })
-
-                .OrderBy(u => u.UserId)
-                .ToListAsync();
-
+            var users = await _donorService.GetDonorsAsync();
             return View(users);
         }
 
         [HttpGet]
         public async Task<IActionResult> EditUser(int id)
         {
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .Include(u => u.Donors)
-                .FirstOrDefaultAsync(u => u.UserId == id);
-
-            if (user == null || user.Role.RoleName != "Donor")
+            var model = await _donorService.GetDonorForEditAsync(id);
+            if (model == null)
                 return NotFound();
 
-            var donor = user.Donors.FirstOrDefault();
-            if (donor == null)
-                return NotFound();
-
-            var model = new EditUser
-            {
-                UserId = user.UserId,
-                FullName = user.FullName,
-                UserName = user.UserName,
-                Email = user.Email,
-                MobileNo = user.MobileNo,
-                Address = user.Address,
-                DateOfBirth = user.DateOfBirth,
-                HealthStatus = donor.HealthStatus,
-                BloodTypeId = donor.BloodTypeId,
-                Gender = user.Gender
-            };
-
-            ViewBag.BloodTypes = await _context.BloodTypes
-               .Select(bt => new { bt.BloodTypeId, bt.TypeName })
-               .ToListAsync();
-
+            model.BloodTypeOptions = await _donorService.GetBloodTypeOptionsAsync();
             return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditUser(EditUser model)
+        public async Task<IActionResult> EditUser(EditDonorViewModel model)
         {
             if (!ModelState.IsValid)
             {
-                ViewBag.BloodTypes = await _context.BloodTypes.ToListAsync();
+                model.BloodTypeOptions = await _donorService.GetBloodTypeOptionsAsync();
                 return View(model);
             }
 
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .Include(u => u.Donors)
-                .FirstOrDefaultAsync(u => u.UserId == model.UserId);
-
-            if (user == null || user.Role.RoleName != "Donor")
+            var result = await _donorService.UpdateDonorAsync(model);
+            if (result.IsNotFound)
                 return NotFound();
 
-            var donor = user.Donors.FirstOrDefault();
-            if (donor == null)
-                return NotFound();
-
-            user.FullName = model.FullName;
-            user.UserName = model.UserName;
-            user.Email = model.Email;
-            user.MobileNo = model.MobileNo;
-            user.Address = model.Address;
-            user.DateOfBirth = model.DateOfBirth;
-
-            donor.HealthStatus = model.HealthStatus;
-            donor.BloodTypeId = model.BloodTypeId;
-            user.Gender = model.Gender;
-
-            await _context.SaveChangesAsync();
+            if (!result.Success)
+            {
+                ModelState.AddModelError(result.FieldName ?? string.Empty, result.Message);
+                model.BloodTypeOptions = await _donorService.GetBloodTypeOptionsAsync();
+                return View(model);
+            }
 
             TempData["Success"] = "Donor updated successfully.";
             return RedirectToAction(nameof(Users));
@@ -270,52 +215,10 @@ namespace Blood_Donations_Project.Controllers
         public async Task<IActionResult> DeleteUser(int id)
         {
             var myIdStr = HttpContext.Session.GetString("UserId");
-            if (int.TryParse(myIdStr, out var myId) && myId == id)
-            {
-                return Json(new { success = false, message = "You cannot delete your own account." });
-            }
+            int? currentUserId = int.TryParse(myIdStr, out var myId) ? myId : null;
 
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserId == id);
-
-            if (user == null)
-                return Json(new { success = false, message = "User not found." });
-
-            if (user.Role?.RoleName != "Donor")
-                return Json(new { success = false, message = "This action is only for Donor accounts." });
-
-            using var tx = await _context.Database.BeginTransactionAsync();
-
-            try
-            {
-                var tokens = await _context.PasswordReset.Where(x => x.UserId == id).ToListAsync();
-                if (tokens.Any()) _context.PasswordReset.RemoveRange(tokens);
-
-                var donationReqs = await _context.DonationRequests.Where(x => x.UserId == id).ToListAsync();
-                if (donationReqs.Any()) _context.DonationRequests.RemoveRange(donationReqs);
-
-                var donations = await _context.Donations.Where(x => x.UserId == id).ToListAsync();
-                if (donations.Any()) _context.Donations.RemoveRange(donations);
-
-                var donor = await _context.Donors.FirstOrDefaultAsync(d => d.UserId == id);
-                if (donor != null) _context.Donors.Remove(donor);
-
-                var userRoles = await _context.UserRoles.Where(ur => ur.UserId == id).ToListAsync();
-                if (userRoles.Any()) _context.UserRoles.RemoveRange(userRoles);
-
-                _context.Users.Remove(user);
-
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
-
-                return Json(new { success = true, message = "Donor deleted successfully." });
-            }
-            catch
-            {
-                await tx.RollbackAsync();
-                return Json(new { success = false, message = "Failed to delete donor." });
-            }
+            var result = await _donorService.DeleteDonorAsync(id, currentUserId);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         // Hospitals Management
@@ -582,19 +485,8 @@ namespace Blood_Donations_Project.Controllers
             if (!int.TryParse(adminIdStr, out var adminId))
                 return Json(new { success = false, message = "Not authorized" });
 
-            var donor = await _context.Donors
-                .FirstOrDefaultAsync(d => d.UserId == userId);
-
-            if (donor == null)
-                return Json(new { success = false, message = "Donor profile not found" });
-
-            donor.IsMedicalVerified = true;
-            donor.MedicalVerifiedBy = adminId;
-            donor.MedicalVerifiedDate = DateOnly.FromDateTime(DateTime.Now);
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Donor medical data verified successfully." });
+            var result = await _donorService.VerifyMedicalAsync(userId, adminId);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         // Manage Donor Requests

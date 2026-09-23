@@ -1,8 +1,9 @@
-﻿using Blood_Donations_Project.Models;
-
-namespace Blood_Donations_Project.ViewModels
+﻿namespace Blood_Donations_Project.ViewModels.Donors
 {
-    public class AdminUserRow
+    /// <summary>
+    /// One row of the Admin/Users donor table (no entity or password data).
+    /// </summary>
+    public class DonorRowViewModel
     {
         public int UserId { get; set; }
         public string? FullName { get; set; }
@@ -10,10 +11,9 @@ namespace Blood_Donations_Project.ViewModels
         public string? Email { get; set; }
         public string? MobileNo { get; set; }
         public string? Address { get; set; }
-        public string? RoleName { get; set; }
         public string? BloodTypeName { get; set; }
         public DateTime? DateOfBirth { get; set; }
         public string? HealthStatus { get; set; }
-        public string? Gender { get; set; } 
+        public string? Gender { get; set; }
     }
 }
