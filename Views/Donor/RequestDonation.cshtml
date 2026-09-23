@@ -1,13 +1,13 @@
-﻿@model Blood_Donations_Project.Models.Donor
+﻿@model Blood_Donations_Project.ViewModels.DonationRequests.RequestDonationViewModel
 @using Blood_Donations_Project.Models
 
 @{
     ViewData["Title"] = "Request Donation";
 
-    string donorName = Model?.User?.FullName ?? "-";
-    string donorEmail = Model?.User?.Email ?? "-";
-    string donorMobile = Model?.User?.MobileNo ?? "-";
-    string bloodType = Model?.BloodType?.TypeName ?? "-";
+    string donorName = Model?.FullName ?? "-";
+    string donorEmail = Model?.Email ?? "-";
+    string donorMobile = Model?.MobileNo ?? "-";
+    string bloodType = Model?.BloodTypeName ?? "-";
 }
 
 <div class="container mt-4">

@@ -89,5 +89,18 @@ namespace Blood_Donations_Project.Services
 
             return ServiceResult.Ok();
         }
+
+        public async Task<bool> TryAddDonatedUnitAsync(int bloodTypeId)
+        {
+            var inventory = await _context.BloodInventories
+                .FirstOrDefaultAsync(i => i.BloodTypeId == bloodTypeId);
+
+            if (inventory == null)
+                return false;
+
+            // Tracked change only; saved by the caller's SaveChangesAsync.
+            inventory.UnitsAvailable += 1;
+            return true;
+        }
     }
 }

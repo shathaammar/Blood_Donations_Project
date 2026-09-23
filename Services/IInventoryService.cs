@@ -17,5 +17,12 @@ namespace Blood_Donations_Project.Services
         /// Fails without changing anything when units &lt;= 0, the row is missing or stock is too low.
         /// </summary>
         Task<ServiceResult> TryDeductUnitsAsync(int bloodTypeId, int units);
+
+        /// <summary>
+        /// Adds one donated unit to the inventory row for a blood type (tracked change only;
+        /// does NOT call SaveChangesAsync). Returns false when no inventory row exists for that
+        /// blood type; nothing is changed and the caller's workflow (e.g. approval) continues.
+        /// </summary>
+        Task<bool> TryAddDonatedUnitAsync(int bloodTypeId);
     }
 }

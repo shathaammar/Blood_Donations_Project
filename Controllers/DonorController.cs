@@ -1,6 +1,7 @@
 ﻿using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
+using Blood_Donations_Project.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,10 +11,12 @@ namespace Blood_Donations_Project.Controllers
     public class DonorController : Controller
     {
         private readonly BloodDonationContext _context;
+        private readonly IDonationRequestService _donationRequestService;
 
-        public DonorController(BloodDonationContext context)
+        public DonorController(BloodDonationContext context, IDonationRequestService donationRequestService)
         {
             _context = context;
+            _donationRequestService = donationRequestService;
         }
 
         private int? GetUserId()
@@ -75,43 +78,21 @@ namespace Blood_Donations_Project.Controllers
             var userId = GetUserId();
             if (userId == null) return RedirectToAction("Login", "Account");
 
-            var hasPendingRequest = await _context.DonationRequests
-                .AnyAsync(r => r.UserId == userId && r.Status == "Pending");
-
-            if (hasPendingRequest)
+            var check = await _donationRequestService.CheckCanOpenRequestFormAsync(userId.Value);
+            if (!check.Success)
             {
-                TempData["ErrorMessage"] = "You already have a pending donation request! Please wait for admin Approval.";
+                TempData["ErrorMessage"] = check.Message;
                 return RedirectToAction("Dashboard", "Admin");
             }
 
-            var lastRequestedDate = await _context.DonationRequests
-                .Where(r => r.UserId == userId)
-                .OrderByDescending(r => r.RequestDate)
-                .Select(r => (DateOnly?)r.RequestDate)
-                .FirstOrDefaultAsync();
-
-            if (lastRequestedDate.HasValue)
-            {
-                var nextAllowed = lastRequestedDate.Value.ToDateTime(TimeOnly.MinValue).AddMonths(3);
-                if (DateTime.Now < nextAllowed)
-                {
-                    TempData["ErrorMessage"] = $"You can request again after {nextAllowed:dd/MM/yyyy}.";
-                    return RedirectToAction("Dashboard", "Admin");
-                }
-            }
-
-            var donor = await _context.Donors
-                 .Include(d => d.User)
-                 .Include(d => d.BloodType)
-                 .FirstOrDefaultAsync(d => d.UserId == userId);
-
-            if (donor == null)
+            var model = await _donationRequestService.GetRequestFormAsync(userId.Value);
+            if (model == null)
             {
                 TempData["ErrorMessage"] = "Donor profile not found.";
                 return RedirectToAction("Dashboard", "Admin");
             }
 
-            return View(donor);
+            return View(model);
         }
 
         [HttpPost]
@@ -121,41 +102,24 @@ namespace Blood_Donations_Project.Controllers
             var userId = GetUserId();
             if (userId == null) return RedirectToAction("Login", "Account");
 
-            var hasPendingRequest = await _context.DonationRequests
-                .AnyAsync(r => r.UserId == userId && r.Status == "Pending");
-
-            if (hasPendingRequest)
+            var pending = await _donationRequestService.CheckNoPendingRequestForSubmitAsync(userId.Value);
+            if (!pending.Success)
             {
-                TempData["ErrorMessage"] = "You already have a pending donation request! Please wait for admin decision.";
+                TempData["ErrorMessage"] = pending.Message;
                 return RedirectToAction("Dashboard", "Admin");
             }
 
-            var lastRequestedDate = await _context.DonationRequests
-                .Where(r => r.UserId == userId)
-                .OrderByDescending(r => r.RequestDate)
-                .Select(r => (DateOnly?)r.RequestDate)
-                .FirstOrDefaultAsync();
-
-            if (lastRequestedDate.HasValue)
+            var waitingPeriod = await _donationRequestService.CheckSubmissionWaitingPeriodForSubmitAsync(userId.Value);
+            if (!waitingPeriod.Success)
             {
-                var nextAllowed = lastRequestedDate.Value.ToDateTime(TimeOnly.MinValue).AddMonths(3);
-                if (DateTime.Now < nextAllowed)
-                {
-                    TempData["ErrorMessage"] = $"You can reque  st again after {nextAllowed:dd/MM/yyyy}.";
-                    return RedirectToAction("Dashboard");
-                }
+                TempData["ErrorMessage"] = waitingPeriod.Message;
+                // Existing redirect preserved: Donor/Dashboard (this action has no view yet).
+                return RedirectToAction("Dashboard");
             }
 
-            _context.DonationRequests.Add(new DonationRequest
-            {
-                UserId = userId.Value,
-                RequestDate = DateOnly.FromDateTime(DateTime.Now),
-                Status = "Pending"
-            });
+            var result = await _donationRequestService.CreateRequestAsync(userId.Value);
 
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Donation request submitted successfully!";
+            TempData["SuccessMessage"] = result.Message;
             return RedirectToAction("Dashboard", "Admin");
         }
     }

@@ -21,27 +21,22 @@ namespace Blood_Donations_Project.Controllers
         private readonly IHospitalService _hospitalService;
         private readonly IDonorManagementService _donorService;
         private readonly IBloodRequestService _bloodRequestService;
+        private readonly IDonationRequestService _donationRequestService;
 
         public AdminController(
             BloodDonationContext context,
             IInventoryService inventoryService,
             IHospitalService hospitalService,
             IDonorManagementService donorService,
-            IBloodRequestService bloodRequestService)
+            IBloodRequestService bloodRequestService,
+            IDonationRequestService donationRequestService)
         {
             _context = context;
             _inventoryService = inventoryService;
             _hospitalService = hospitalService;
             _donorService = donorService;
             _bloodRequestService = bloodRequestService;
-        }
-
-        private int CalculateAge(DateTime dob)
-        {
-            var today = DateTime.Today;
-            var age = today.Year - dob.Year;
-            if (dob.Date > today.AddYears(-age)) age--;
-            return age;
+            _donationRequestService = donationRequestService;
         }
 
         [SessionAuthorize]
@@ -440,72 +435,8 @@ namespace Blood_Donations_Project.Controllers
             var adminIdStr = HttpContext.Session.GetString("UserId");
             int.TryParse(adminIdStr, out var adminId);
 
-            var req = await _context.DonationRequests
-                .Include(r => r.User)
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (req == null)
-                return Json(new { success = false, message = "Request not found" });
-
-            if (req.Status != "Pending")
-                return Json(new { success = false, message = "Already processed" });
-
-            var donor = await _context.Donors
-                .FirstOrDefaultAsync(d => d.UserId == req.UserId);
-
-            if (donor == null)
-                return Json(new { success = false, message = "Donor profile not found" });
-
-            if (req.User.DateOfBirth == default)
-                return Json(new { success = false, message = "Date of birth missing." });
-
-            int age = CalculateAge(req.User.DateOfBirth);
-            if (age < 18)
-                return Json(new { success = false, message = "Donor must be 18+." });
-
-            if (!donor.IsMedicalVerified)
-                return Json(new { success = false, message = "Medical data not verified." });
-
-            if (donor.LastDonationDate.HasValue)
-            {
-                var nextAllowed = donor.LastDonationDate.Value
-                    .ToDateTime(TimeOnly.MinValue)
-                    .AddMonths(3);
-
-                if (DateTime.Now < nextAllowed)
-                    return Json(new
-                    {
-                        success = false,
-                        message = $"Can donate again after {nextAllowed:dd/MM/yyyy}"
-                    });
-            }
-
-            req.Status = "Approved";
-            req.ApprovedBy = adminId;
-            req.ApprovedDate = DateOnly.FromDateTime(DateTime.Now);
-
-            _context.Donations.Add(new Donation
-            {
-                UserId = req.UserId,
-                ApprovedBy = adminId,
-                DonationDate = DateOnly.FromDateTime(DateTime.Now),
-                Status = "Approved"
-            });
-
-            if (donor.BloodTypeId.HasValue)
-            {
-                var inventory = await _context.BloodInventories
-                    .FirstOrDefaultAsync(i => i.BloodTypeId == donor.BloodTypeId);
-
-                if (inventory != null)
-                    inventory.UnitsAvailable += 1;
-            }
-
-            donor.LastDonationDate = DateOnly.FromDateTime(DateTime.Now);
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Donor request approved." });
+            var result = await _donationRequestService.ApproveRequestAsync(id, adminId);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         [HttpPost]
@@ -515,22 +446,8 @@ namespace Blood_Donations_Project.Controllers
             var adminIdStr = HttpContext.Session.GetString("UserId");
             int.TryParse(adminIdStr, out var adminId);
 
-            var req = await _context.DonationRequests
-                .FirstOrDefaultAsync(r => r.Id == id);
-
-            if (req == null)
-                return Json(new { success = false, message = "Request not found" });
-
-            if (req.Status != "Pending")
-                return Json(new { success = false, message = "Already processed" });
-
-            req.Status = "Rejected";
-            req.ApprovedBy = adminId;
-            req.ApprovedDate = DateOnly.FromDateTime(DateTime.Now);
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Donor request rejected." });
+            var result = await _donationRequestService.RejectRequestAsync(id, adminId);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         public async Task<IActionResult> Statistics()
