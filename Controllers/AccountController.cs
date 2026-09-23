@@ -1,6 +1,8 @@
 ﻿using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
+using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels;
+using Blood_Donations_Project.ViewModels.Profile;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -16,11 +18,13 @@ namespace Blood_Donations_Project.Controllers
     {
         private readonly BloodDonationContext _context;
         private readonly IConfiguration _config;
+        private readonly IProfileService _profileService;
 
-        public AccountController(BloodDonationContext context, IConfiguration config)
+        public AccountController(BloodDonationContext context, IConfiguration config, IProfileService profileService)
         {
             _context = context;
             _config = config;
+            _profileService = profileService;
         }
 
         // LOGIN
@@ -226,49 +230,17 @@ namespace Blood_Donations_Project.Controllers
 
             var roleName = HttpContext.Session.GetString("UserRole") ?? "";
 
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserId == userId);
-
-            if (user == null)
+            var model = await _profileService.GetProfileAsync(userId, roleName);
+            if (model == null)
                 return RedirectToAction("Login");
 
-            var vm = new Profile
-            {
-                UserId = user.UserId,
-                FullName = user.FullName,
-                UserName = user.UserName,
-                Email = user.Email,
-                MobileNo = user.MobileNo,
-                Address = user.Address,
-                RoleName = user.Role?.RoleName,
-                Gender = user.Gender,
-            };
-
-            if (string.Equals(roleName, "Donor", StringComparison.OrdinalIgnoreCase))
-            {
-                vm.DateOfBirth = user.DateOfBirth;
-
-                var donor = await _context.Donors
-                    .Include(d => d.BloodType)
-                    .FirstOrDefaultAsync(d => d.UserId == userId);
-
-                vm.BloodTypeId = donor?.BloodTypeId;
-                vm.BloodTypeName = donor?.BloodType?.TypeName;
-                vm.HealthStatus = donor?.HealthStatus;
-
-                ViewBag.BloodTypes = await _context.BloodTypes
-                    .Select(bt => new { bt.BloodTypeId, bt.TypeName })
-                    .ToListAsync();
-            }
-
-            return View(vm);
+            return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [SessionAuthorize]
-        public async Task<IActionResult> Profile(Profile model)
+        public async Task<IActionResult> Profile(ProfileViewModel model)
         {
             var userIdStr = HttpContext.Session.GetString("UserId");
             if (!int.TryParse(userIdStr, out var userId))
@@ -279,65 +251,28 @@ namespace Blood_Donations_Project.Controllers
 
             var roleName = HttpContext.Session.GetString("UserRole") ?? "";
 
-            if (string.Equals(roleName, "Hospital", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(roleName, "BloodBank", StringComparison.OrdinalIgnoreCase))
+            var canUpdate = _profileService.CheckCanUpdate(roleName);
+            if (!canUpdate.Success)
             {
-                TempData["Success"] = "Your profile data is managed by the Admin.";
+                // Existing behavior: this notice is shown with the success styling.
+                TempData["Success"] = canUpdate.Message;
                 return RedirectToAction("Profile");
             }
 
-            bool isDonor = string.Equals(roleName, "Donor", StringComparison.OrdinalIgnoreCase);
-            bool isAdmin = string.Equals(roleName, "Admin", StringComparison.OrdinalIgnoreCase);
-
-            if (isDonor)
-            {
-                if (!model.BloodTypeId.HasValue)
-                    ModelState.AddModelError(nameof(model.BloodTypeId), "Blood type is required.");
-
-                if (string.IsNullOrWhiteSpace(model.Gender))
-                    ModelState.AddModelError(nameof(model.Gender), "Gender is required.");
-            }
+            foreach (var error in _profileService.ValidateForRole(model, roleName))
+                ModelState.AddModelError(error.FieldName ?? string.Empty, error.Message);
 
             if (!ModelState.IsValid)
             {
-                if (isDonor)
-                {
-                    ViewBag.BloodTypes = await _context.BloodTypes
-                        .Select(bt => new { bt.BloodTypeId, bt.TypeName })
-                        .ToListAsync();
-                }
-
-                model.RoleName = roleName;
+                await _profileService.PrepareForRedisplayAsync(model, userId, roleName);
                 return View(model);
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
-            if (user == null)
+            var result = await _profileService.UpdateProfileAsync(userId, roleName, model);
+            if (result.IsNotFound)
                 return RedirectToAction("Login");
 
-            user.FullName = model.FullName;
-            user.Email = model.Email;
-            user.MobileNo = model.MobileNo;
-            user.Address = model.Address;
-
-            if (isDonor || isAdmin)
-            {
-                user.Gender = model.Gender;
-            }
-
-            if (isDonor)
-            {
-                var donor = await _context.Donors.FirstOrDefaultAsync(d => d.UserId == userId);
-                if (donor != null)
-                {
-                    donor.BloodTypeId = model.BloodTypeId!.Value;
-                    donor.HealthStatus = model.HealthStatus;
-                }
-            }
-
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Profile updated successfully.";
+            TempData["Success"] = result.Message;
             return RedirectToAction("Profile");
         }
 

@@ -1,20 +1,16 @@
-﻿@model Blood_Donations_Project.ViewModels.Profile
-@using Microsoft.AspNetCore.Http
+﻿@model Blood_Donations_Project.ViewModels.Profile.ProfileViewModel
 @using Microsoft.AspNetCore.Mvc.Rendering
 
 @{
     ViewData["Title"] = "My Profile";
 
-    var role = Context.Session.GetString("UserRole") ?? "";
-    var bloodTypesRaw = ViewBag.BloodTypes as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    var role = Model.RoleName ?? "";
 
-    bool isDonor = role.Equals("Donor", StringComparison.OrdinalIgnoreCase);
-    bool isAdmin = role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
-    bool isHospitalOrBloodBank =
-        role.Equals("Hospital", StringComparison.OrdinalIgnoreCase) ||
-        role.Equals("BloodBank", StringComparison.OrdinalIgnoreCase);
+    bool isDonor = Model.IsDonor;
+    bool isAdmin = Model.IsAdmin;
+    bool isHospitalOrBloodBank = Model.IsManagedByAdmin;
 
-    bool canEdit = isDonor || isAdmin;
+    bool canEdit = Model.CanEdit;
 
     var genderItems = new List<SelectListItem>
     {
@@ -23,7 +19,7 @@
         new SelectListItem { Value = "Female", Text = "Female" }
     };
 
-    var bloodTypeSelectList = new SelectList(bloodTypesRaw, "BloodTypeId", "TypeName", Model.BloodTypeId);
+    var bloodTypeSelectList = new SelectList(Model.BloodTypeOptions, "BloodTypeId", "TypeName", Model.BloodTypeId);
 
     var textAttrs = canEdit
         ? new Dictionary<string, object> { ["class"] = "form-control" }
