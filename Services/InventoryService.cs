@@ -1,3 +1,4 @@
+using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,52 +21,52 @@ namespace Blood_Donations_Project.Services
                 .ToListAsync();
         }
 
-        public async Task<(bool success, string message)> SetUnitsAsync(int inventoryId, int units)
+        public async Task<ServiceResult> SetUnitsAsync(int inventoryId, int units)
         {
             if (units < 0)
-                return (false, "Units must be >= 0");
+                return ServiceResult.Fail("Units must be >= 0");
 
             var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == inventoryId);
             if (inv == null)
-                return (false, "Inventory row not found");
+                return ServiceResult.Fail("Inventory row not found");
 
             inv.UnitsAvailable = units;
             await _context.SaveChangesAsync();
 
-            return (true, "Units updated successfully");
+            return ServiceResult.Ok("Units updated successfully");
         }
 
-        public async Task<(bool success, string message)> AddUnitsAsync(int inventoryId, int amount)
+        public async Task<ServiceResult> AddUnitsAsync(int inventoryId, int amount)
         {
             if (amount <= 0)
-                return (false, "Amount must be > 0");
+                return ServiceResult.Fail("Amount must be > 0");
 
             var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == inventoryId);
             if (inv == null)
-                return (false, "Inventory row not found");
+                return ServiceResult.Fail("Inventory row not found");
 
             inv.UnitsAvailable += amount;
             await _context.SaveChangesAsync();
 
-            return (true, $"+{amount} units added");
+            return ServiceResult.Ok($"+{amount} units added");
         }
 
-        public async Task<(bool success, string message)> RemoveUnitsAsync(int inventoryId, int amount)
+        public async Task<ServiceResult> RemoveUnitsAsync(int inventoryId, int amount)
         {
             if (amount <= 0)
-                return (false, "Amount must be > 0");
+                return ServiceResult.Fail("Amount must be > 0");
 
             var inv = await _context.BloodInventories.FirstOrDefaultAsync(x => x.Id == inventoryId);
             if (inv == null)
-                return (false, "Inventory row not found");
+                return ServiceResult.Fail("Inventory row not found");
 
             if (inv.UnitsAvailable < amount)
-                return (false, "Not enough units to remove");
+                return ServiceResult.Fail("Not enough units to remove");
 
             inv.UnitsAvailable -= amount;
             await _context.SaveChangesAsync();
 
-            return (true, $"-{amount} units removed");
+            return ServiceResult.Ok($"-{amount} units removed");
         }
     }
 }

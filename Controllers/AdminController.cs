@@ -1,4 +1,5 @@
-﻿using Blood_Donations_Project.Filters;
+﻿using Blood_Donations_Project.Common;
+using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels;
@@ -345,7 +346,7 @@ namespace Blood_Donations_Project.Controllers
             {
                 ModelState.AddModelError(
                     result.FieldName ?? string.Empty,
-                    result.Error ?? "An error occurred.");
+                    result.Message);
 
                 return View(model);
             }
@@ -374,14 +375,14 @@ namespace Blood_Donations_Project.Controllers
 
             var result = await _hospitalService.UpdateHospitalAsync(model);
 
-            if (!result.Success && string.IsNullOrEmpty(result.Error))
+            if (result.IsNotFound)
                 return NotFound();
 
             if (!result.Success)
             {
                 ModelState.AddModelError(
                     result.FieldName ?? string.Empty,
-                    result.Error!);
+                    result.Message);
 
                 return View(model);
             }
@@ -403,13 +404,12 @@ namespace Blood_Donations_Project.Controllers
                 id,
                 currentUserId);
 
-            if (!result.Success && string.IsNullOrEmpty(result.Error))
+            if (result.IsNotFound)
                 return NotFound();
 
             if (!result.Success)
             {
-                TempData["Error"] =
-                    result.Error ?? "An error occurred.";
+                TempData["Error"] = result.Message;
 
                 return RedirectToAction(nameof(Hospitals));
             }
@@ -738,8 +738,8 @@ namespace Blood_Donations_Project.Controllers
             if (!ModelState.IsValid)
                 return Json(new { success = false, message = "Invalid request" });
 
-            var (success, message) = await _inventoryService.SetUnitsAsync(dto.Id, dto.Units);
-            return Json(new { success, message });
+            var result = await _inventoryService.SetUnitsAsync(dto.Id, dto.Units);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         [HttpPost]
@@ -749,8 +749,8 @@ namespace Blood_Donations_Project.Controllers
             if (!ModelState.IsValid)
                 return Json(new { success = false, message = "Invalid request" });
 
-            var (success, message) = await _inventoryService.AddUnitsAsync(dto.Id, dto.Amount);
-            return Json(new { success, message });
+            var result = await _inventoryService.AddUnitsAsync(dto.Id, dto.Amount);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         [HttpPost]
@@ -760,8 +760,8 @@ namespace Blood_Donations_Project.Controllers
             if (!ModelState.IsValid)
                 return Json(new { success = false, message = "Invalid request" });
 
-            var (success, message) = await _inventoryService.RemoveUnitsAsync(dto.Id, dto.Amount);
-            return Json(new { success, message });
+            var result = await _inventoryService.RemoveUnitsAsync(dto.Id, dto.Amount);
+            return Json(new { success = result.Success, message = result.Message });
         }
     }
 }

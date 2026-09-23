@@ -1,4 +1,4 @@
-using Blood_Donations_Project.Filters;
+using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.ViewModels;
 using Blood_Donations_Project.ViewModels.Hospitals;
@@ -38,15 +38,15 @@ namespace Blood_Donations_Project.Services
                 .ToListAsync();
         }
 
-        public async Task<HospitalServiceResult> CreateHospitalAsync(HospitalCreate model)
+        public async Task<ServiceResult> CreateHospitalAsync(HospitalCreate model)
         {
             // Check duplicate email
             if (await _context.Users.AnyAsync(u => u.Email == model.Email))
-                return HospitalServiceResult.Fail("Email already exists.", "Email");
+                return ServiceResult.Fail("Email already exists.", "Email");
 
             // Check duplicate username
             if (await _context.Users.AnyAsync(u => u.UserName == model.UserName))
-                return HospitalServiceResult.Fail("UserName already exists.", "UserName");
+                return ServiceResult.Fail("UserName already exists.", "UserName");
 
             // Get Hospital role
             var hospitalRoleId = await _context.Roles
@@ -55,7 +55,7 @@ namespace Blood_Donations_Project.Services
                 .FirstOrDefaultAsync();
 
             if (hospitalRoleId == 0)
-                return HospitalServiceResult.Fail("Hospital role not found in Roles table.");
+                return ServiceResult.Fail("Hospital role not found in Roles table.");
 
             // Create user entity
             var user = new User
@@ -75,7 +75,7 @@ namespace Blood_Donations_Project.Services
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return HospitalServiceResult.Ok();
+            return ServiceResult.Ok();
         }
 
         public async Task<HospitalEdit?> GetHospitalForEditAsync(int id)
@@ -101,25 +101,25 @@ namespace Blood_Donations_Project.Services
             };
         }
 
-        public async Task<HospitalServiceResult> UpdateHospitalAsync(HospitalEdit model)
+        public async Task<ServiceResult> UpdateHospitalAsync(HospitalEdit model)
         {
             var user = await _context.Users
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.UserId == model.UserId);
 
             if (user == null)
-                return HospitalServiceResult.Fail(""); // Will result in NotFound in controller
+                return ServiceResult.NotFound();
 
             if (!string.Equals(user.Role?.RoleName, AppRoles.Hospital, StringComparison.OrdinalIgnoreCase))
-                return HospitalServiceResult.Fail(""); // Will result in NotFound in controller
+                return ServiceResult.NotFound();
 
             // Check duplicate email (excluding current user)
             if (await _context.Users.AnyAsync(u => u.Email == model.Email && u.UserId != model.UserId))
-                return HospitalServiceResult.Fail("Email already exists.", "Email");
+                return ServiceResult.Fail("Email already exists.", "Email");
 
             // Check duplicate username (excluding current user)
             if (await _context.Users.AnyAsync(u => u.UserName == model.UserName && u.UserId != model.UserId))
-                return HospitalServiceResult.Fail("UserName already exists.", "UserName");
+                return ServiceResult.Fail("UserName already exists.", "UserName");
 
             // Update fields
             user.UserName = model.UserName;
@@ -130,24 +130,24 @@ namespace Blood_Donations_Project.Services
 
             await _context.SaveChangesAsync();
 
-            return HospitalServiceResult.Ok();
+            return ServiceResult.Ok();
         }
 
-        public async Task<HospitalServiceResult> DeleteHospitalAsync(int id, int currentUserId)
+        public async Task<ServiceResult> DeleteHospitalAsync(int id, int currentUserId)
         {
             // Check if deleting own account
             if (currentUserId == id)
-                return HospitalServiceResult.Fail("You cannot delete your own account.");
+                return ServiceResult.Fail("You cannot delete your own account.");
 
             var user = await _context.Users
                 .Include(u => u.Role)
                 .FirstOrDefaultAsync(u => u.UserId == id);
 
             if (user == null)
-                return HospitalServiceResult.Fail(""); // Will result in NotFound in controller
+                return ServiceResult.NotFound();
 
             if (!string.Equals(user.Role?.RoleName, AppRoles.Hospital, StringComparison.OrdinalIgnoreCase))
-                return HospitalServiceResult.Fail("This action is only for Hospital accounts.");
+                return ServiceResult.Fail("This action is only for Hospital accounts.");
 
             // Transaction for cleanup
             using var tx = await _context.Database.BeginTransactionAsync();
@@ -175,13 +175,13 @@ namespace Blood_Donations_Project.Services
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
 
-                return HospitalServiceResult.Ok();
+                return ServiceResult.Ok();
             }
             catch (Exception ex)
             {
                 await tx.RollbackAsync();
                 _logger.LogError(ex, "Failed to delete hospital with UserId {HospitalId}", id);
-                return HospitalServiceResult.Fail("Failed to delete hospital. Please try again.");
+                return ServiceResult.Fail("Failed to delete hospital. Please try again.");
             }
         }
     }
