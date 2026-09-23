@@ -1,7 +1,6 @@
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -18,8 +17,6 @@ namespace Blood_Donations_Project
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             builder.Services.AddScoped<IInventoryService, InventoryService>();
-            builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-            builder.Services.AddScoped<IHospitalService, HospitalService>();
 
             builder.Services.AddControllersWithViews();
 
