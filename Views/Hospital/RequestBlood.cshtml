@@ -1,4 +1,4 @@
-﻿@model Blood_Donations_Project.ViewModels.BloodRequestViewModel
+﻿@model Blood_Donations_Project.ViewModels.BloodRequests.RequestBloodViewModel
 @{
     ViewData["Title"] = "Request Blood";
 }
@@ -37,7 +37,7 @@
                             <div class="col-md-6">
                                 <label asp-for="BloodTypeId" class="form-label">Blood Type</label>
                                 <select asp-for="BloodTypeId"
-                                        asp-items="ViewBag.BloodTypes"
+                                        asp-items="@(new SelectList(Model.BloodTypeOptions, "BloodTypeId", "TypeName"))"
                                         class="form-select">
                                     <option value="">Select blood type</option>
                                 </select>

@@ -20,17 +20,20 @@ namespace Blood_Donations_Project.Controllers
         private readonly IInventoryService _inventoryService;
         private readonly IHospitalService _hospitalService;
         private readonly IDonorManagementService _donorService;
+        private readonly IBloodRequestService _bloodRequestService;
 
         public AdminController(
             BloodDonationContext context,
             IInventoryService inventoryService,
             IHospitalService hospitalService,
-            IDonorManagementService donorService)
+            IDonorManagementService donorService,
+            IBloodRequestService bloodRequestService)
         {
             _context = context;
             _inventoryService = inventoryService;
             _hospitalService = hospitalService;
             _donorService = donorService;
+            _bloodRequestService = bloodRequestService;
         }
 
         private int CalculateAge(DateTime dob)
@@ -386,30 +389,7 @@ namespace Blood_Donations_Project.Controllers
         {
             status = (status ?? "Pending").Trim();
 
-            var query =
-                from br in _context.BloodRequests
-                join u in _context.Users on br.UserId equals u.UserId into users
-                from u in users.DefaultIfEmpty()
-                join bt in _context.BloodTypes on br.BloodTypeId equals bt.BloodTypeId into bts
-                from bt in bts.DefaultIfEmpty()
-                select new BloodRequestRowTable
-                {
-                    Id = br.Id,
-                    UserId = br.UserId,
-                    UserName = u != null ? u.FullName : "-",
-                    BloodTypeId = br.BloodTypeId,
-                    BloodTypeName = bt != null ? bt.TypeName : "-",
-                    RequestDate = br.RequestDate,
-                    Quantity = br.Quantity,
-                    Status = br.Status
-                };
-
-            if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
-            {
-                query = query.Where(x => x.Status != null && x.Status.Trim() == status);
-            }
-
-            var requests = await query.OrderByDescending(x => x.Id).ToListAsync();
+            var requests = await _bloodRequestService.GetRequestsForAdminAsync(status);
 
             ViewBag.SelectedStatus = status;
             return View(requests);
@@ -424,35 +404,8 @@ namespace Blood_Donations_Project.Controllers
             if (!int.TryParse(adminIdStr, out var adminId))
                 return Json(new { success = false, message = "Not authorized" });
 
-            var req = await _context.BloodRequests.FirstOrDefaultAsync(br => br.Id == id);
-            if (req == null)
-                return Json(new { success = false, message = "Request not found" });
-
-            if (!string.Equals(req.Status, "Pending", StringComparison.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Already processed" });
-
-            if (req.BloodTypeId == null)
-                return Json(new { success = false, message = "Invalid blood type" });
-
-            var units = req.Quantity ?? 0;
-            if (units <= 0)
-                return Json(new { success = false, message = "Invalid quantity" });
-
-            var inventory = await _context.BloodInventories
-                .FirstOrDefaultAsync(i => i.BloodTypeId == req.BloodTypeId.Value);
-
-            if (inventory == null)
-                return Json(new { success = false, message = "Inventory not found" });
-
-            if (inventory.UnitsAvailable < units)
-                return Json(new { success = false, message = "Not enough blood units available" });
-
-            inventory.UnitsAvailable -= units;
-            req.Status = "Approved";
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Request approved successfully" });
+            var result = await _bloodRequestService.ApproveRequestAsync(id);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         [HttpPost]
@@ -463,18 +416,8 @@ namespace Blood_Donations_Project.Controllers
             if (!int.TryParse(adminIdStr, out var adminId))
                 return Json(new { success = false, message = "Not authorized" });
 
-            var req = await _context.BloodRequests.FirstOrDefaultAsync(br => br.Id == id);
-            if (req == null)
-                return Json(new { success = false, message = "Request not found" });
-
-            if (!string.Equals(req.Status, "Pending", StringComparison.OrdinalIgnoreCase))
-                return Json(new { success = false, message = "Already processed" });
-
-            req.Status = "Rejected";
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Request rejected" });
+            var result = await _bloodRequestService.RejectRequestAsync(id);
+            return Json(new { success = result.Success, message = result.Message });
         }
 
         [HttpPost]

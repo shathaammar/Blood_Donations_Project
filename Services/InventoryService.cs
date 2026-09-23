@@ -68,5 +68,26 @@ namespace Blood_Donations_Project.Services
 
             return ServiceResult.Ok($"-{amount} units removed");
         }
+
+        public async Task<ServiceResult> TryDeductUnitsAsync(int bloodTypeId, int units)
+        {
+            // Defensive: protects the inventory from incorrect callers.
+            if (units <= 0)
+                return ServiceResult.Fail("Invalid quantity");
+
+            var inventory = await _context.BloodInventories
+                .FirstOrDefaultAsync(i => i.BloodTypeId == bloodTypeId);
+
+            if (inventory == null)
+                return ServiceResult.Fail("Inventory not found");
+
+            if (inventory.UnitsAvailable < units)
+                return ServiceResult.Fail("Not enough blood units available");
+
+            // Tracked change only; saved by the caller's SaveChangesAsync.
+            inventory.UnitsAvailable -= units;
+
+            return ServiceResult.Ok();
+        }
     }
 }

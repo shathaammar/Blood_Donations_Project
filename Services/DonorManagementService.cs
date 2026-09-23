@@ -1,6 +1,7 @@
 using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.ViewModels.Donors;
+using Blood_Donations_Project.ViewModels.Shared;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blood_Donations_Project.Services

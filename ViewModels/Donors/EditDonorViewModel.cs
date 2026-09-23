@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Blood_Donations_Project.ViewModels.Shared;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 

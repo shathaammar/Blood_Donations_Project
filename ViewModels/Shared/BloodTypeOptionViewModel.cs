@@ -1,4 +1,4 @@
-﻿namespace Blood_Donations_Project.ViewModels.Donors
+﻿namespace Blood_Donations_Project.ViewModels.Shared
 {
     public class BloodTypeOptionViewModel
     {

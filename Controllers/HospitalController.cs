@@ -1,9 +1,9 @@
 ﻿using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
-using Blood_Donations_Project.ViewModels;
+using Blood_Donations_Project.Services;
+using Blood_Donations_Project.ViewModels.BloodRequests;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -13,10 +13,12 @@ namespace Blood_Donations_Project.Controllers
     public class HospitalController : Controller
     {
         private readonly BloodDonationContext _context;
+        private readonly IBloodRequestService _bloodRequestService;
 
-        public HospitalController(BloodDonationContext context)
+        public HospitalController(BloodDonationContext context, IBloodRequestService bloodRequestService)
         {
             _context = context;
+            _bloodRequestService = bloodRequestService;
         }
 
         public async Task<IActionResult> Dashboard()
@@ -51,18 +53,17 @@ namespace Blood_Donations_Project.Controllers
             if (!int.TryParse(userIdStr, out var userId))
                 return RedirectToAction("Login", "Account");
 
-            var bloodTypes = await _context.BloodTypes
-                .Select(bt => new { bt.BloodTypeId, bt.TypeName })
-                .ToListAsync();
+            var model = new RequestBloodViewModel
+            {
+                BloodTypeOptions = await _bloodRequestService.GetBloodTypeOptionsAsync()
+            };
 
-            ViewBag.BloodTypes = new SelectList(bloodTypes, "BloodTypeId", "TypeName");
-
-            return View();
+            return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RequestBlood(BloodRequestViewModel model)
+        public async Task<IActionResult> RequestBlood(RequestBloodViewModel model)
         {
             var userIdStr = HttpContext.Session.GetString("UserId");
 
@@ -71,25 +72,17 @@ namespace Blood_Donations_Project.Controllers
 
             if (!ModelState.IsValid)
             {
-                var bloodTypes = await _context.BloodTypes
-                    .Select(bt => new { bt.BloodTypeId, bt.TypeName })
-                    .ToListAsync();
-
-                ViewBag.BloodTypes = new SelectList(bloodTypes, "BloodTypeId", "TypeName");
+                model.BloodTypeOptions = await _bloodRequestService.GetBloodTypeOptionsAsync();
                 return View(model);
             }
 
-            var bloodRequest = new BloodRequest
+            var result = await _bloodRequestService.CreateRequestAsync(userId, model);
+            if (!result.Success)
             {
-                UserId = userId,
-                BloodTypeId = model.BloodTypeId,
-                Quantity = model.Quantity,
-                RequestDate = DateOnly.FromDateTime(DateTime.Now),
-                Status = "Pending"
-            };
-
-            _context.BloodRequests.Add(bloodRequest);
-            await _context.SaveChangesAsync();
+                ModelState.AddModelError(result.FieldName ?? string.Empty, result.Message);
+                model.BloodTypeOptions = await _bloodRequestService.GetBloodTypeOptionsAsync();
+                return View(model);
+            }
 
             TempData["SuccessMessage"] = "Blood request submitted successfully! Waiting for admin approval.";
             return RedirectToAction("Dashboard", "Admin");

@@ -21,6 +21,7 @@ namespace Blood_Donations_Project
             builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             builder.Services.AddScoped<IHospitalService, HospitalService>();
             builder.Services.AddScoped<IDonorManagementService, DonorManagementService>();
+            builder.Services.AddScoped<IBloodRequestService, BloodRequestService>();
 
             builder.Services.AddControllersWithViews();
 
