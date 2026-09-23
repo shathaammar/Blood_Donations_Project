@@ -1,7 +1,7 @@
 using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Models;
-using Blood_Donations_Project.ViewModels;
 using Blood_Donations_Project.ViewModels.BloodRequests;
+using Blood_Donations_Project.ViewModels.Dashboard;
 using Blood_Donations_Project.ViewModels.Shared;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,7 +47,7 @@ namespace Blood_Donations_Project.Services
             return ServiceResult.Ok();
         }
 
-        public async Task<List<BloodRequestRowTable>> GetRequestsForAdminAsync(string status)
+        public async Task<List<BloodRequestRowViewModel>> GetRequestsForAdminAsync(string status)
         {
             var query =
                 from br in _context.BloodRequests
@@ -55,7 +55,7 @@ namespace Blood_Donations_Project.Services
                 from u in users.DefaultIfEmpty()
                 join bt in _context.BloodTypes on br.BloodTypeId equals bt.BloodTypeId into bts
                 from bt in bts.DefaultIfEmpty()
-                select new BloodRequestRowTable
+                select new BloodRequestRowViewModel
                 {
                     Id = br.Id,
                     UserId = br.UserId,

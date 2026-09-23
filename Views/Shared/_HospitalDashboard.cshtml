@@ -1,18 +1,10 @@
-﻿@using Blood_Donations_Project.Models
+﻿@model Blood_Donations_Project.ViewModels.Dashboard.HospitalDashboardViewModel
 @{
     ViewData["Title"] = "Hospital Dashboard";
 
-    User? user = ViewBag.User as User;
-    var bloodTypeMap = ViewBag.BloodTypeMap as Dictionary<int, string> ?? new Dictionary<int, string>();
-    var hospitalRequests = ViewBag.HospitalRequests as List<BloodRequest> ?? new List<BloodRequest>();
+    var hospitalRequests = Model.Requests;
 
     string FormatDate(DateOnly? d) => d.HasValue ? d.Value.ToString("dd/MM/yyyy") : "-";
-
-    string GetBloodTypeName(int? id)
-    {
-        if (!id.HasValue) return "-";
-        return bloodTypeMap.TryGetValue(id.Value, out var name) ? name : id.Value.ToString();
-    }
 }
 
 <div class="container mt-4">
@@ -83,7 +75,7 @@
 
                                     <td>
                                         <span class="badge badge-wine text-white">
-                                            @GetBloodTypeName(r.BloodTypeId)
+                                            @r.BloodTypeName
                                         </span>
                                     </td>
 

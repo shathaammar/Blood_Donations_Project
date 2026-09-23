@@ -1,10 +1,8 @@
 ﻿using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Filters;
-using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels.BloodRequests;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Blood_Donations_Project.Controllers
@@ -12,39 +10,17 @@ namespace Blood_Donations_Project.Controllers
     [SessionAuthorize(AppRoles.Hospital)]
     public class HospitalController : Controller
     {
-        private readonly BloodDonationContext _context;
         private readonly IBloodRequestService _bloodRequestService;
 
-        public HospitalController(BloodDonationContext context, IBloodRequestService bloodRequestService)
+        public HospitalController(IBloodRequestService bloodRequestService)
         {
-            _context = context;
             _bloodRequestService = bloodRequestService;
         }
 
-        public async Task<IActionResult> Dashboard()
+        // No Hospital/Dashboard view exists: the shared role-aware dashboard lives at Admin/Dashboard.
+        public IActionResult Dashboard()
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(userIdStr, out var userId))
-                return RedirectToAction("Login", "Account");
-
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.UserId == userId);
-
-            if (user == null)
-                return RedirectToAction("Login", "Account");
-
-            ViewBag.User = user;
-
-            ViewBag.BloodTypeMap = await _context.BloodTypes
-                .ToDictionaryAsync(bt => bt.BloodTypeId, bt => bt.TypeName);
-
-            var bloodRequests = await _context.BloodRequests
-                .Where(br => br.UserId == userId)
-                .OrderByDescending(br => br.Id)
-                .ToListAsync();
-
-            return View(bloodRequests);
+            return RedirectToAction("Dashboard", "Admin");
         }
 
         public async Task<IActionResult> RequestBlood()
@@ -89,18 +65,10 @@ namespace Blood_Donations_Project.Controllers
         }
 
 
-        public async Task<IActionResult> MyRequests()
+        // No Hospital/MyRequests view exists: the hospital's requests are listed on Admin/Dashboard.
+        public IActionResult MyRequests()
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(userIdStr, out var userId))
-                return RedirectToAction("Login", "Account");
-
-            var bloodRequests = await _context.BloodRequests
-                .Where(br => br.UserId == userId)
-                .OrderByDescending(br => br.Id)
-                .ToListAsync();
-
-            return View(bloodRequests);
+            return RedirectToAction("Dashboard", "Admin");
         }
 
     }

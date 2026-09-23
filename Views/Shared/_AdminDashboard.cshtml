@@ -1,21 +1,18 @@
-﻿@using Blood_Donations_Project.ViewModels
-@using Blood_Donations_Project.Models
+﻿@model Blood_Donations_Project.ViewModels.Dashboard.AdminDashboardViewModel
 
 @{
     ViewData["Title"] = "Admin Dashboard";
 
-    int totalDonations = ViewBag.TotalDonations ?? 0;
-    int totalRequests = ViewBag.TotalRequests ?? 0;
-    int totalBloodRequests = ViewBag.TotalBloodRequests ?? 0;
-    int totalDonationRequests = ViewBag.TotalDonationRequests ?? 0;
+    int totalDonations = Model.TotalDonations;
+    int totalRequests = Model.TotalRequests;
+    int totalBloodRequests = Model.TotalBloodRequests;
+    int totalDonationRequests = Model.TotalDonationRequests;
 
-    var selectedTable = (ViewBag.SelectedTable as string) ?? "BloodRequests";
-    var selectedStatus = (ViewBag.SelectedStatus as string) ?? "Pending";
+    var selectedTable = Model.SelectedTable ?? "BloodRequests";
+    var selectedStatus = Model.SelectedStatus ?? "Pending";
 
-    var bloodRequests = ViewBag.AdminRequests as List<BloodRequestRowTable> ?? new();
-    var donorRequests = ViewBag.DonorDonationRequests as List<DonationRequest> ?? new();
-
-    var hospitals = ViewBag.Hospitals as List<User> ?? new();
+    var bloodRequests = Model.BloodRequests;
+    var donorRequests = Model.DonationRequests;
 
     string FormatDate(DateOnly? d) => d.HasValue ? d.Value.ToString("dd/MM/yyyy") : "-";
 }
@@ -351,7 +348,7 @@
 
                                         <tr>
                                             <td class="fw-semibold">@sn</td>
-                                            <td>@(r.User?.FullName ?? "-")</td>
+                                            <td>@(r.DonorFullName ?? "-")</td>
                                             <td class="text-muted">@r.RequestDate.ToString("dd/MM/yyyy")</td>
 
                                             <td>
@@ -374,13 +371,12 @@
                                             </td>
 
                                             <td class="text-muted">@FormatDate(r.ApprovedDate)</td>
-                                            <td>@(r.ApprovedByNavigation?.UserName ?? "-")</td>
+                                            <td>@(r.ApprovedByUserName ?? "-")</td>
 
                                             <td class="text-center">
                                                 @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
                                                 {
-                                                    var donor = r.User?.Donors?.FirstOrDefault();
-                                                    bool isVerified = donor?.IsMedicalVerified == true;
+                                                    bool isVerified = r.IsDonorMedicalVerified;
 
                                                     if (!isVerified)
                                                     {

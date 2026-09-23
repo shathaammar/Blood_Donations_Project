@@ -22,6 +22,7 @@ namespace Blood_Donations_Project.Controllers
         private readonly IDonorManagementService _donorService;
         private readonly IBloodRequestService _bloodRequestService;
         private readonly IDonationRequestService _donationRequestService;
+        private readonly IDashboardService _dashboardService;
 
         public AdminController(
             BloodDonationContext context,
@@ -29,7 +30,8 @@ namespace Blood_Donations_Project.Controllers
             IHospitalService hospitalService,
             IDonorManagementService donorService,
             IBloodRequestService bloodRequestService,
-            IDonationRequestService donationRequestService)
+            IDonationRequestService donationRequestService,
+            IDashboardService dashboardService)
         {
             _context = context;
             _inventoryService = inventoryService;
@@ -37,6 +39,7 @@ namespace Blood_Donations_Project.Controllers
             _donorService = donorService;
             _bloodRequestService = bloodRequestService;
             _donationRequestService = donationRequestService;
+            _dashboardService = dashboardService;
         }
 
         [SessionAuthorize]
@@ -48,118 +51,8 @@ namespace Blood_Donations_Project.Controllers
             if (!int.TryParse(userIdStr, out var userId) || string.IsNullOrWhiteSpace(role))
                 return RedirectToAction("Login", "Account");
 
-            // Cards 
-            ViewBag.TotalDonations = await _context.Donations.CountAsync();
-            ViewBag.TotalBloodRequests = await _context.BloodRequests.CountAsync();
-            ViewBag.TotalDonationRequests = await _context.DonationRequests.CountAsync();
-            ViewBag.TotalRequests = (int)ViewBag.TotalBloodRequests + (int)ViewBag.TotalDonationRequests;
-
-
-
-            if (role == "Admin")
-            {
-                table = (table ?? "BloodRequests").Trim();
-                status = (status ?? "All").Trim();
-
-                ViewBag.SelectedTable = table;
-                ViewBag.SelectedStatus = status;
-
-                var bloodQuery =
-                    from br in _context.BloodRequests
-                    join u in _context.Users on br.UserId equals u.UserId into users
-                    from u in users.DefaultIfEmpty()
-                    join bt in _context.BloodTypes on br.BloodTypeId equals bt.BloodTypeId into bts
-                    from bt in bts.DefaultIfEmpty()
-                    select new BloodRequestRowTable
-                    {
-                        Id = br.Id,
-                        UserId = br.UserId,
-                        UserName = u != null ? u.FullName : "-",
-                        BloodTypeId = br.BloodTypeId,
-                        BloodTypeName = bt != null ? bt.TypeName : "-",
-                        RequestDate = br.RequestDate,
-                        Quantity = br.Quantity,
-                        Status = br.Status
-                    };
-
-                if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
-                    bloodQuery = bloodQuery.Where(x => x.Status != null && x.Status.Trim() == status);
-
-                ViewBag.AdminRequests = await bloodQuery
-                    .OrderByDescending(x => x.Id)
-                    .ToListAsync();
-
-                var donorQuery = _context.DonationRequests
-                    .Include(r => r.User)
-                    .ThenInclude(u => u.Donors)
-                    .Include(r => r.ApprovedByNavigation)
-                    .AsQueryable();
-
-
-                if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
-                    donorQuery = donorQuery.Where(r => r.Status != null && r.Status.Trim() == status);
-
-                ViewBag.DonorDonationRequests = await donorQuery
-                    .OrderByDescending(r => r.Id)
-                    .ToListAsync();
-            }
-
-
-            if (role == "Hospital" || role == "BloodBank")
-            {
-                ViewBag.BloodTypeMap = await _context.BloodTypes
-            .ToDictionaryAsync(bt => bt.BloodTypeId, bt => bt.TypeName);
-
-                ViewBag.HospitalRequests = await _context.BloodRequests
-                    .Where(br => br.UserId == userId)
-                    .OrderByDescending(br => br.Id)
-                    .ToListAsync();
-            }
-
-            if (role == "Donor")
-            {
-                var donor = await _context.Donors
-                    .Include(d => d.User)
-                    .Include(d => d.BloodType)
-                    .FirstOrDefaultAsync(d => d.UserId == userId);
-
-                ViewBag.Donor = donor;
-
- 
-                var lastApprovedDonation = await _context.Donations
-                    .Where(d => d.UserId == userId && d.Status == "Approved")
-                    .OrderByDescending(d => d.DonationDate)
-                    .FirstOrDefaultAsync();
-
-                ViewBag.LastDonation = lastApprovedDonation;
-
-
-                var lastRequestedDate = await _context.DonationRequests
-                    .Where(r => r.UserId == userId)
-                    .OrderByDescending(r => r.RequestDate)
-                    .Select(r => (DateOnly?)r.RequestDate)
-                    .FirstOrDefaultAsync();
-
-                bool canDonate = true;
-                if (lastRequestedDate.HasValue)
-                {
-                    var nextAllowed = lastRequestedDate.Value.ToDateTime(TimeOnly.MinValue).AddMonths(3);
-                    canDonate = DateTime.Now >= nextAllowed;
-                }
-
-                ViewBag.CanDonate = canDonate;
-
-
-                ViewBag.DonorRequests = await _context.DonationRequests
-                    .Where(r => r.UserId == userId)
-                    .Include(r => r.ApprovedByNavigation)
-                    .OrderByDescending(r => r.Id)
-                    .ToListAsync();
-            }
-
-
-            return View();
-
+            var model = await _dashboardService.GetDashboardAsync(userId, role, table, status);
+            return View(model);
         }
 
         // User (Donor) Management

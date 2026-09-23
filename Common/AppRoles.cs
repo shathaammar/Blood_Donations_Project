@@ -8,5 +8,6 @@ namespace Blood_Donations_Project.Common
         public const string Admin = "Admin";
         public const string Donor = "Donor";
         public const string Hospital = "Hospital";
+        public const string BloodBank = "BloodBank";
     }
 }

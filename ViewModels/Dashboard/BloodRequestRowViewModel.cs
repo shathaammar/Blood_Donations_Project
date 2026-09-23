@@ -1,6 +1,10 @@
-﻿namespace Blood_Donations_Project.ViewModels
+﻿namespace Blood_Donations_Project.ViewModels.Dashboard
 {
-    public class BloodRequestRowTable
+    /// <summary>
+    /// Flat blood-request row (previously ViewModels.BloodRequestRowTable).
+    /// Used by the admin and hospital dashboards and by Admin/ManageBloodRequests.
+    /// </summary>
+    public class BloodRequestRowViewModel
     {
         public int Id { get; set; }
         public int? UserId { get; set; }

@@ -1,21 +1,17 @@
 ﻿using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Filters;
-using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Blood_Donations_Project.Controllers
 {
     [SessionAuthorize(AppRoles.Donor)]
     public class DonorController : Controller
     {
-        private readonly BloodDonationContext _context;
         private readonly IDonationRequestService _donationRequestService;
 
-        public DonorController(BloodDonationContext context, IDonationRequestService donationRequestService)
+        public DonorController(IDonationRequestService donationRequestService)
         {
-            _context = context;
             _donationRequestService = donationRequestService;
         }
 
@@ -25,51 +21,11 @@ namespace Blood_Donations_Project.Controllers
             return int.TryParse(userIdStr, out var id) ? id : null;
         }
 
-        public async Task<IActionResult> Dashboard()
+        // No Donor/Dashboard view exists: the shared role-aware dashboard lives at Admin/Dashboard.
+        // Route kept (the RequestDonation POST waiting-period branch redirects here).
+        public IActionResult Dashboard()
         {
-            var userId = GetUserId();
-            if (userId == null) return RedirectToAction("Login", "Account");
-
-            var donor = await _context.Donors
-                .Include(d => d.BloodType)
-                .Include(d => d.User)
-                .FirstOrDefaultAsync(d => d.UserId == userId);
-
-            if (donor == null)
-                return RedirectToAction("Login", "Account");
-
-            
-            var lastApprovedDonation = await _context.Donations
-                .Where(d => d.UserId == userId && d.Status == "Approved")
-                .OrderByDescending(d => d.DonationDate)
-                .FirstOrDefaultAsync();
-
-     
-            var lastRequestedDate = await _context.DonationRequests
-                .Where(r => r.UserId == userId)
-                .OrderByDescending(r => r.RequestDate)
-                .Select(r => (DateOnly?)r.RequestDate)
-                .FirstOrDefaultAsync();
-
-            bool canDonate = true;
-            if (lastRequestedDate.HasValue)
-            {
-                var nextAllowed = lastRequestedDate.Value.ToDateTime(TimeOnly.MinValue).AddMonths(3);
-                canDonate = DateTime.Now >= nextAllowed;
-            }
-
-            ViewBag.CanDonate = canDonate;
-            ViewBag.LastDonation = lastApprovedDonation;
-            ViewBag.Donor = donor;
-
-    
-            var requests = await _context.DonationRequests
-                .Where(r => r.UserId == userId)
-                .Include(r => r.ApprovedByNavigation)
-                .OrderByDescending(r => r.Id)
-                .ToListAsync();
-
-            return View(requests);
+            return RedirectToAction("Dashboard", "Admin");
         }
 
         [HttpGet]

@@ -1,9 +1,7 @@
-﻿@using Blood_Donations_Project.ViewModels
-@using Blood_Donations_Project.Models
-@using Microsoft.AspNetCore.Http
+﻿@model Blood_Donations_Project.ViewModels.Dashboard.DashboardViewModel
 @{
     ViewData["Title"] = "Home";
-    var role = Context.Session.GetString("UserRole") ?? "";
+    var role = Model.Role ?? "";
 }
 @if (string.IsNullOrWhiteSpace(role))
 {
@@ -11,19 +9,19 @@
         You are not logged in. Please <a href="/Account/Login">login</a>.
     </div>
 }
-else if (role == "Admin")
+else if (Model.Admin != null)
 {
-    <partial name="~/Views/Shared/_AdminDashboard.cshtml" />
+    <partial name="~/Views/Shared/_AdminDashboard.cshtml" model="Model.Admin" />
 }
-else if (role == "Donor")
+else if (Model.Donor != null)
 {
     <partial name="~/Views/Shared/_DonorDashboard.cshtml"
-             model="(IEnumerable<DonationRequest>)ViewBag.DonorRequests" />
+             model="Model.Donor" />
 }
 
-else if (role == "Hospital" || role == "BloodBank")
+else if (Model.Hospital != null)
 {
-    <partial name="~/Views/Shared/_HospitalDashboard.cshtml" />
+    <partial name="~/Views/Shared/_HospitalDashboard.cshtml" model="Model.Hospital" />
 }
 else
 {
