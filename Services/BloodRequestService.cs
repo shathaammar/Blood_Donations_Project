@@ -34,7 +34,7 @@ namespace Blood_Donations_Project.Services
                 BloodTypeId = model.BloodTypeId,
                 Quantity = model.Quantity,
                 RequestDate = DateOnly.FromDateTime(DateTime.Now),
-                Status = "Pending"
+                Status = RequestStatuses.Pending
             };
 
             _context.BloodRequests.Add(bloodRequest);
@@ -77,7 +77,7 @@ namespace Blood_Donations_Project.Services
             if (req == null)
                 return ServiceResult.NotFound("Request not found");
 
-            if (!string.Equals(req.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(req.Status, RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
                 return ServiceResult.Fail("Already processed");
 
             if (req.BloodTypeId == null)
@@ -93,7 +93,7 @@ namespace Blood_Donations_Project.Services
             if (!stock.Success)
                 return stock;
 
-            req.Status = "Approved";
+            req.Status = RequestStatuses.Approved;
 
             // One save for both the inventory deduction and the status change
             // (InventoryService shares this request's scoped DbContext).
@@ -108,10 +108,10 @@ namespace Blood_Donations_Project.Services
             if (req == null)
                 return ServiceResult.NotFound("Request not found");
 
-            if (!string.Equals(req.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(req.Status, RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
                 return ServiceResult.Fail("Already processed");
 
-            req.Status = "Rejected";
+            req.Status = RequestStatuses.Rejected;
 
             await _context.SaveChangesAsync();
 

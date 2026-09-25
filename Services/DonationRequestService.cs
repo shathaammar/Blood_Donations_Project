@@ -78,7 +78,7 @@ namespace Blood_Donations_Project.Services
             {
                 UserId = donorUserId,
                 RequestDate = DateOnly.FromDateTime(DateTime.Now),
-                Status = "Pending"
+                Status = RequestStatuses.Pending
             });
 
             await _context.SaveChangesAsync();
@@ -87,7 +87,7 @@ namespace Blood_Donations_Project.Services
         }
 
         private Task<bool> HasPendingRequestAsync(int donorUserId)
-            => _context.DonationRequests.AnyAsync(r => r.UserId == donorUserId && r.Status == "Pending");
+            => _context.DonationRequests.AnyAsync(r => r.UserId == donorUserId && r.Status == RequestStatuses.Pending);
 
         public async Task<DateTime?> GetSubmissionBlockedUntilAsync(int donorUserId)
         {
@@ -112,7 +112,7 @@ namespace Blood_Donations_Project.Services
             if (req == null)
                 return ServiceResult.NotFound("Request not found");
 
-            if (req.Status != "Pending")
+            if (req.Status != RequestStatuses.Pending)
                 return ServiceResult.Fail("Already processed");
 
             var donor = await _context.Donors
@@ -133,7 +133,7 @@ namespace Blood_Donations_Project.Services
 
             var today = DateOnly.FromDateTime(now);
 
-            req.Status = "Approved";
+            req.Status = RequestStatuses.Approved;
             req.ApprovedBy = adminUserId;
             req.ApprovedDate = today;
 
@@ -142,7 +142,7 @@ namespace Blood_Donations_Project.Services
                 UserId = req.UserId,
                 ApprovedBy = adminUserId,
                 DonationDate = today,
-                Status = "Approved"
+                Status = RequestStatuses.Approved
             });
 
             // Existing behavior: no blood type or no inventory row => approval still
@@ -167,10 +167,10 @@ namespace Blood_Donations_Project.Services
             if (req == null)
                 return ServiceResult.NotFound("Request not found");
 
-            if (req.Status != "Pending")
+            if (req.Status != RequestStatuses.Pending)
                 return ServiceResult.Fail("Already processed");
 
-            req.Status = "Rejected";
+            req.Status = RequestStatuses.Rejected;
             req.ApprovedBy = adminUserId;
             req.ApprovedDate = DateOnly.FromDateTime(DateTime.Now);
 

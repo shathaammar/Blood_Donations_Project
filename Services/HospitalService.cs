@@ -1,6 +1,5 @@
 using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Models;
-using Blood_Donations_Project.ViewModels;
 using Blood_Donations_Project.ViewModels.Hospitals;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +37,7 @@ namespace Blood_Donations_Project.Services
                 .ToListAsync();
         }
 
-        public async Task<ServiceResult> CreateHospitalAsync(HospitalCreate model)
+        public async Task<ServiceResult> CreateHospitalAsync(HospitalCreateViewModel model)
         {
             // Check duplicate email
             if (await _context.Users.AnyAsync(u => u.Email == model.Email))
@@ -78,7 +77,7 @@ namespace Blood_Donations_Project.Services
             return ServiceResult.Ok();
         }
 
-        public async Task<HospitalEdit?> GetHospitalForEditAsync(int id)
+        public async Task<HospitalEditViewModel?> GetHospitalForEditAsync(int id)
         {
             var user = await _context.Users
                 .Include(u => u.Role)
@@ -90,7 +89,7 @@ namespace Blood_Donations_Project.Services
             if (!string.Equals(user.Role?.RoleName, AppRoles.Hospital, StringComparison.OrdinalIgnoreCase))
                 return null;
 
-            return new HospitalEdit
+            return new HospitalEditViewModel
             {
                 UserId = user.UserId,
                 UserName = user.UserName ?? "",
@@ -101,7 +100,7 @@ namespace Blood_Donations_Project.Services
             };
         }
 
-        public async Task<ServiceResult> UpdateHospitalAsync(HospitalEdit model)
+        public async Task<ServiceResult> UpdateHospitalAsync(HospitalEditViewModel model)
         {
             var user = await _context.Users
                 .Include(u => u.Role)

@@ -1,0 +1,585 @@
+diff --git a/Common/RequestStatuses.cs b/Common/RequestStatuses.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..86a332e238433decf0c61f58d6069839c88eb3ee
+--- /dev/null
++++ b/Common/RequestStatuses.cs
+@@ -0,0 +1,13 @@
++namespace Blood_Donations_Project.Common
++{
++    /// <summary>
++    /// Status values stored on blood requests, donation requests and donations,
++    /// exactly as saved in the database.
++    /// </summary>
++    public static class RequestStatuses
++    {
++        public const string Pending = "Pending";
++        public const string Approved = "Approved";
++        public const string Rejected = "Rejected";
++    }
++}
+diff --git a/Controllers/AdminController.cs b/Controllers/AdminController.cs
+index 7bf9eefa82a648ad00b30b55d278775179c9d90e..d7cb804fbc153e8935835ea7239a24ad2f09b5e0 100644
+--- a/Controllers/AdminController.cs
++++ b/Controllers/AdminController.cs
+@@ -124,12 +124,12 @@ namespace Blood_Donations_Project.Controllers
+         [HttpGet]
+         public IActionResult AddHospital()
+         {
+-            return View(new HospitalCreate());
++            return View(new HospitalCreateViewModel());
+         }
+ 
+         [HttpPost]
+         [ValidateAntiForgeryToken]
+-        public async Task<IActionResult> AddHospital(HospitalCreate model)
++        public async Task<IActionResult> AddHospital(HospitalCreateViewModel model)
+         {
+             if (!ModelState.IsValid)
+                 return View(model);
+@@ -162,7 +162,7 @@ namespace Blood_Donations_Project.Controllers
+ 
+         [HttpPost]
+         [ValidateAntiForgeryToken]
+-        public async Task<IActionResult> EditHospital(HospitalEdit model)
++        public async Task<IActionResult> EditHospital(HospitalEditViewModel model)
+         {
+             if (!ModelState.IsValid)
+                 return View(model);
+diff --git a/Services/BloodRequestService.cs b/Services/BloodRequestService.cs
+index 6e2634dd03ecf734a6b30b8229660abf601ce271..0d0308573b66d34ec7e52f359b3f973c072d96cd 100644
+--- a/Services/BloodRequestService.cs
++++ b/Services/BloodRequestService.cs
+@@ -34,7 +34,7 @@ namespace Blood_Donations_Project.Services
+                 BloodTypeId = model.BloodTypeId,
+                 Quantity = model.Quantity,
+                 RequestDate = DateOnly.FromDateTime(DateTime.Now),
+-                Status = "Pending"
++                Status = RequestStatuses.Pending
+             };
+ 
+             _context.BloodRequests.Add(bloodRequest);
+@@ -77,7 +77,7 @@ namespace Blood_Donations_Project.Services
+             if (req == null)
+                 return ServiceResult.NotFound("Request not found");
+ 
+-            if (!string.Equals(req.Status, "Pending", StringComparison.OrdinalIgnoreCase))
++            if (!string.Equals(req.Status, RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                 return ServiceResult.Fail("Already processed");
+ 
+             if (req.BloodTypeId == null)
+@@ -93,7 +93,7 @@ namespace Blood_Donations_Project.Services
+             if (!stock.Success)
+                 return stock;
+ 
+-            req.Status = "Approved";
++            req.Status = RequestStatuses.Approved;
+ 
+             // One save for both the inventory deduction and the status change
+             // (InventoryService shares this request's scoped DbContext).
+@@ -108,10 +108,10 @@ namespace Blood_Donations_Project.Services
+             if (req == null)
+                 return ServiceResult.NotFound("Request not found");
+ 
+-            if (!string.Equals(req.Status, "Pending", StringComparison.OrdinalIgnoreCase))
++            if (!string.Equals(req.Status, RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                 return ServiceResult.Fail("Already processed");
+ 
+-            req.Status = "Rejected";
++            req.Status = RequestStatuses.Rejected;
+ 
+             await _context.SaveChangesAsync();
+ 
+diff --git a/Services/DashboardService.cs b/Services/DashboardService.cs
+index fecd8afcc06cc79d2cc1d3bc375586eef9197b76..56e65f9b64b6bf54c6be4135c8c889462448142d 100644
+--- a/Services/DashboardService.cs
++++ b/Services/DashboardService.cs
+@@ -89,7 +89,7 @@ namespace Blood_Donations_Project.Services
+                 .FirstOrDefaultAsync();
+ 
+             var lastApprovedDonationDate = await _context.Donations
+-                .Where(d => d.UserId == userId && d.Status == "Approved")
++                .Where(d => d.UserId == userId && d.Status == RequestStatuses.Approved)
+                 .OrderByDescending(d => d.DonationDate)
+                 .Select(d => d.DonationDate)
+                 .FirstOrDefaultAsync();
+@@ -114,9 +114,9 @@ namespace Blood_Donations_Project.Services
+                 Requests = requests,
+                 // Same counting rules the view used (trimmed, case-insensitive).
+                 TotalRequests = requests.Count,
+-                PendingRequests = requests.Count(x => HasStatus(x.Status, "Pending")),
+-                ApprovedRequests = requests.Count(x => HasStatus(x.Status, "Approved")),
+-                RejectedRequests = requests.Count(x => HasStatus(x.Status, "Rejected"))
++                PendingRequests = requests.Count(x => HasStatus(x.Status, RequestStatuses.Pending)),
++                ApprovedRequests = requests.Count(x => HasStatus(x.Status, RequestStatuses.Approved)),
++                RejectedRequests = requests.Count(x => HasStatus(x.Status, RequestStatuses.Rejected))
+             };
+         }
+ 
+diff --git a/Services/DonationRequestService.cs b/Services/DonationRequestService.cs
+index bde987dcd908f2614b0d3c3141751597348c1878..77f5c5dc8e0e4a7a878b9ef5ffd2adc5f4f11aca 100644
+--- a/Services/DonationRequestService.cs
++++ b/Services/DonationRequestService.cs
+@@ -78,7 +78,7 @@ namespace Blood_Donations_Project.Services
+             {
+                 UserId = donorUserId,
+                 RequestDate = DateOnly.FromDateTime(DateTime.Now),
+-                Status = "Pending"
++                Status = RequestStatuses.Pending
+             });
+ 
+             await _context.SaveChangesAsync();
+@@ -87,7 +87,7 @@ namespace Blood_Donations_Project.Services
+         }
+ 
+         private Task<bool> HasPendingRequestAsync(int donorUserId)
+-            => _context.DonationRequests.AnyAsync(r => r.UserId == donorUserId && r.Status == "Pending");
++            => _context.DonationRequests.AnyAsync(r => r.UserId == donorUserId && r.Status == RequestStatuses.Pending);
+ 
+         public async Task<DateTime?> GetSubmissionBlockedUntilAsync(int donorUserId)
+         {
+@@ -112,7 +112,7 @@ namespace Blood_Donations_Project.Services
+             if (req == null)
+                 return ServiceResult.NotFound("Request not found");
+ 
+-            if (req.Status != "Pending")
++            if (req.Status != RequestStatuses.Pending)
+                 return ServiceResult.Fail("Already processed");
+ 
+             var donor = await _context.Donors
+@@ -133,7 +133,7 @@ namespace Blood_Donations_Project.Services
+ 
+             var today = DateOnly.FromDateTime(now);
+ 
+-            req.Status = "Approved";
++            req.Status = RequestStatuses.Approved;
+             req.ApprovedBy = adminUserId;
+             req.ApprovedDate = today;
+ 
+@@ -142,7 +142,7 @@ namespace Blood_Donations_Project.Services
+                 UserId = req.UserId,
+                 ApprovedBy = adminUserId,
+                 DonationDate = today,
+-                Status = "Approved"
++                Status = RequestStatuses.Approved
+             });
+ 
+             // Existing behavior: no blood type or no inventory row => approval still
+@@ -167,10 +167,10 @@ namespace Blood_Donations_Project.Services
+             if (req == null)
+                 return ServiceResult.NotFound("Request not found");
+ 
+-            if (req.Status != "Pending")
++            if (req.Status != RequestStatuses.Pending)
+                 return ServiceResult.Fail("Already processed");
+ 
+-            req.Status = "Rejected";
++            req.Status = RequestStatuses.Rejected;
+             req.ApprovedBy = adminUserId;
+             req.ApprovedDate = DateOnly.FromDateTime(DateTime.Now);
+ 
+diff --git a/Services/HospitalService.cs b/Services/HospitalService.cs
+index c73f5855b9d7c93855ca8b949603e608acad93df..cd85fb48c1b23b826b231c825c3b6134357a2a9e 100644
+--- a/Services/HospitalService.cs
++++ b/Services/HospitalService.cs
+@@ -1,6 +1,5 @@
+ using Blood_Donations_Project.Common;
+ using Blood_Donations_Project.Models;
+-using Blood_Donations_Project.ViewModels;
+ using Blood_Donations_Project.ViewModels.Hospitals;
+ using Microsoft.AspNetCore.Identity;
+ using Microsoft.EntityFrameworkCore;
+@@ -38,7 +37,7 @@ namespace Blood_Donations_Project.Services
+                 .ToListAsync();
+         }
+ 
+-        public async Task<ServiceResult> CreateHospitalAsync(HospitalCreate model)
++        public async Task<ServiceResult> CreateHospitalAsync(HospitalCreateViewModel model)
+         {
+             // Check duplicate email
+             if (await _context.Users.AnyAsync(u => u.Email == model.Email))
+@@ -78,7 +77,7 @@ namespace Blood_Donations_Project.Services
+             return ServiceResult.Ok();
+         }
+ 
+-        public async Task<HospitalEdit?> GetHospitalForEditAsync(int id)
++        public async Task<HospitalEditViewModel?> GetHospitalForEditAsync(int id)
+         {
+             var user = await _context.Users
+                 .Include(u => u.Role)
+@@ -90,7 +89,7 @@ namespace Blood_Donations_Project.Services
+             if (!string.Equals(user.Role?.RoleName, AppRoles.Hospital, StringComparison.OrdinalIgnoreCase))
+                 return null;
+ 
+-            return new HospitalEdit
++            return new HospitalEditViewModel
+             {
+                 UserId = user.UserId,
+                 UserName = user.UserName ?? "",
+@@ -101,7 +100,7 @@ namespace Blood_Donations_Project.Services
+             };
+         }
+ 
+-        public async Task<ServiceResult> UpdateHospitalAsync(HospitalEdit model)
++        public async Task<ServiceResult> UpdateHospitalAsync(HospitalEditViewModel model)
+         {
+             var user = await _context.Users
+                 .Include(u => u.Role)
+diff --git a/Services/IHospitalService.cs b/Services/IHospitalService.cs
+index 53fab40f99d942e82dec0f1054f82a30d60f3152..964de50f3f6a2a5d1e4422e32f6e186ed4284fa3 100644
+--- a/Services/IHospitalService.cs
++++ b/Services/IHospitalService.cs
+@@ -1,5 +1,4 @@
+ using Blood_Donations_Project.Common;
+-using Blood_Donations_Project.ViewModels;
+ using Blood_Donations_Project.ViewModels.Hospitals;
+ 
+ namespace Blood_Donations_Project.Services
+@@ -7,9 +6,9 @@ namespace Blood_Donations_Project.Services
+     public interface IHospitalService
+     {
+         Task<List<HospitalRowViewModel>> GetHospitalsAsync();
+-        Task<ServiceResult> CreateHospitalAsync(HospitalCreate model);
+-        Task<HospitalEdit?> GetHospitalForEditAsync(int id);
+-        Task<ServiceResult> UpdateHospitalAsync(HospitalEdit model);
++        Task<ServiceResult> CreateHospitalAsync(HospitalCreateViewModel model);
++        Task<HospitalEditViewModel?> GetHospitalForEditAsync(int id);
++        Task<ServiceResult> UpdateHospitalAsync(HospitalEditViewModel model);
+         Task<ServiceResult> DeleteHospitalAsync(int id, int currentUserId);
+     }
+ }
+diff --git a/Services/SeedService.cs b/Services/SeedService.cs
+index 5466bf09884811d47776c62d52dea694c3d316a9..035d8c262fa95f339707726baab1be4aacb3679c 100644
+--- a/Services/SeedService.cs
++++ b/Services/SeedService.cs
+@@ -1,4 +1,5 @@
+-﻿using Blood_Donations_Project.Models;
++﻿using Blood_Donations_Project.Common;
++using Blood_Donations_Project.Models;
+ using Microsoft.AspNetCore.Identity;
+ using Microsoft.EntityFrameworkCore;
+ 
+@@ -57,10 +58,10 @@ namespace Blood_Donations_Project.Services
+ 
+                 var roles = new List<Role>
+                 {
+-                    new Role { RoleName = "Admin" },
+-                    new Role { RoleName = "Donor" },
+-                    new Role { RoleName = "Hospital" },
+-                    new Role { RoleName = "BloodBank" }
++                    new Role { RoleName = AppRoles.Admin },
++                    new Role { RoleName = AppRoles.Donor },
++                    new Role { RoleName = AppRoles.Hospital },
++                    new Role { RoleName = AppRoles.BloodBank }
+                 };
+ 
+                 await context.Roles.AddRangeAsync(roles);
+@@ -124,7 +125,7 @@ namespace Blood_Donations_Project.Services
+ 
+                 logger.LogInformation("Adding admin user...");
+ 
+-                var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Admin");
++                var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == AppRoles.Admin);
+ 
+                 if (adminRole == null)
+                 {
+diff --git a/ViewModels/DeleteUser.cs b/ViewModels/DeleteUser.cs
+deleted file mode 100644
+index 9b18b72bf2704a87a248ebb365c6557ba6fbc5c9..0000000000000000000000000000000000000000
+--- a/ViewModels/DeleteUser.cs
++++ /dev/null
+@@ -1,7 +0,0 @@
+-﻿namespace Blood_Donations_Project.ViewModels
+-{
+-    public class DeleteUser
+-    {
+-        public bool IsActive { get; set; } = true;
+-    }
+-}
+diff --git a/ViewModels/HospitalCreate.cs b/ViewModels/HospitalCreate.cs
+deleted file mode 100644
+index b1f9eb5ff730e88b783ef3a671f7a12fb95ace8d..0000000000000000000000000000000000000000
+--- a/ViewModels/HospitalCreate.cs
++++ /dev/null
+@@ -1,27 +0,0 @@
+-﻿using System.ComponentModel.DataAnnotations;
+-
+-namespace Blood_Donations_Project.ViewModels
+-{
+-    public class HospitalCreate
+-    {
+-        [Required]
+-        public string UserName { get; set; } = "";
+-
+-        [Required]
+-        public string FullName { get; set; } = "";
+-
+-        [Required, EmailAddress]
+-        public string Email { get; set; } = "";
+-
+-        public string? MobileNo { get; set; }
+-        public string? Address { get; set; }
+-
+-        [Required, MinLength(6)]
+-        public string Password { get; set; } = "";
+-
+-        [Required]
+-        [DataType(DataType.Password)]
+-        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+-        public string ConfirmPassword { get; set; } = "";
+-    }
+-}
+diff --git a/ViewModels/HospitalEdit.cs b/ViewModels/HospitalEdit.cs
+deleted file mode 100644
+index bbdc812685bd4072f8ec730891e692df4d918b0d..0000000000000000000000000000000000000000
+--- a/ViewModels/HospitalEdit.cs
++++ /dev/null
+@@ -1,22 +0,0 @@
+-﻿using System.ComponentModel.DataAnnotations;
+-
+-namespace Blood_Donations_Project.ViewModels
+-{
+-    public class HospitalEdit
+-    {
+-        [Required]
+-        public int UserId { get; set; }
+-
+-        [Required]
+-        public string UserName { get; set; } = "";
+-
+-        [Required]
+-        public string FullName { get; set; } = "";
+-
+-        [Required, EmailAddress]
+-        public string Email { get; set; } = "";
+-
+-        public string? MobileNo { get; set; }
+-        public string? Address { get; set; }
+-    }
+-}
+diff --git a/ViewModels/Hospitals/HospitalCreateViewModel.cs b/ViewModels/Hospitals/HospitalCreateViewModel.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..479667aed99a4f1aec93f506c5bb1ba0f50735b0
+--- /dev/null
++++ b/ViewModels/Hospitals/HospitalCreateViewModel.cs
+@@ -0,0 +1,31 @@
++using System.ComponentModel.DataAnnotations;
++
++namespace Blood_Donations_Project.ViewModels.Hospitals
++{
++    /// <summary>
++    /// Admin "Add Hospital" form (Views/Admin/AddHospital.cshtml).
++    /// Previously ViewModels.HospitalCreate; properties and validation are unchanged.
++    /// </summary>
++    public class HospitalCreateViewModel
++    {
++        [Required]
++        public string UserName { get; set; } = "";
++
++        [Required]
++        public string FullName { get; set; } = "";
++
++        [Required, EmailAddress]
++        public string Email { get; set; } = "";
++
++        public string? MobileNo { get; set; }
++        public string? Address { get; set; }
++
++        [Required, MinLength(6)]
++        public string Password { get; set; } = "";
++
++        [Required]
++        [DataType(DataType.Password)]
++        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
++        public string ConfirmPassword { get; set; } = "";
++    }
++}
+diff --git a/ViewModels/Hospitals/HospitalEditViewModel.cs b/ViewModels/Hospitals/HospitalEditViewModel.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..8dbbf877cba6bf34ecf54edddb9526ee9fee82b2
+--- /dev/null
++++ b/ViewModels/Hospitals/HospitalEditViewModel.cs
+@@ -0,0 +1,26 @@
++using System.ComponentModel.DataAnnotations;
++
++namespace Blood_Donations_Project.ViewModels.Hospitals
++{
++    /// <summary>
++    /// Admin "Edit Hospital" form (Views/Admin/EditHospital.cshtml).
++    /// Previously ViewModels.HospitalEdit; properties and validation are unchanged.
++    /// </summary>
++    public class HospitalEditViewModel
++    {
++        [Required]
++        public int UserId { get; set; }
++
++        [Required]
++        public string UserName { get; set; } = "";
++
++        [Required]
++        public string FullName { get; set; } = "";
++
++        [Required, EmailAddress]
++        public string Email { get; set; } = "";
++
++        public string? MobileNo { get; set; }
++        public string? Address { get; set; }
++    }
++}
+diff --git a/Views/Admin/AddHospital.cshtml b/Views/Admin/AddHospital.cshtml
+index 4f29b55c06977447fce27f42ab05c9090030e12b..39d7d0ce5cef053665cc89f1d90221c809cfcfc5 100644
+--- a/Views/Admin/AddHospital.cshtml
++++ b/Views/Admin/AddHospital.cshtml
+@@ -1,4 +1,4 @@
+-﻿@model Blood_Donations_Project.ViewModels.HospitalCreate
++﻿@model Blood_Donations_Project.ViewModels.Hospitals.HospitalCreateViewModel
+ 
+ @{
+     ViewData["Title"] = "Add Hospital";
+diff --git a/Views/Admin/EditHospital.cshtml b/Views/Admin/EditHospital.cshtml
+index 0fc409124b18825be6ff3af9ae5b97c05bc702a5..4f26f27b7e733b043d68ff61ee18a1b3511825ac 100644
+--- a/Views/Admin/EditHospital.cshtml
++++ b/Views/Admin/EditHospital.cshtml
+@@ -1,4 +1,4 @@
+-﻿@model Blood_Donations_Project.ViewModels.HospitalEdit
++﻿@model Blood_Donations_Project.ViewModels.Hospitals.HospitalEditViewModel
+ 
+ @{
+     ViewData["Title"] = "Edit Hospital";
+diff --git a/Views/Shared/_AdminDashboard.cshtml b/Views/Shared/_AdminDashboard.cshtml
+index eb894dcc8a69e9ff4189ac636838d34b3fbb972b..6e7bbf7934060505d03a482504dc3f2ff1924799 100644
+--- a/Views/Shared/_AdminDashboard.cshtml
++++ b/Views/Shared/_AdminDashboard.cshtml
+@@ -9,7 +9,7 @@
+     int totalDonationRequests = Model.TotalDonationRequests;
+ 
+     var selectedTable = Model.SelectedTable ?? "BloodRequests";
+-    var selectedStatus = Model.SelectedStatus ?? "Pending";
++    var selectedStatus = Model.SelectedStatus ?? RequestStatuses.Pending;
+ 
+     var bloodRequests = Model.BloodRequests;
+     var donorRequests = Model.DonationRequests;
+@@ -179,9 +179,9 @@
+                 <label class="form-label text-muted small mb-1">Status</label>
+                 <select class="form-select" name="status" id="statusSelect">
+                     <option value="All" selected="@(selectedStatus == "All")">All</option>
+-                    <option value="Pending" selected="@(selectedStatus == "Pending")">Pending</option>
+-                    <option value="Approved" selected="@(selectedStatus == "Approved")">Approved</option>
+-                    <option value="Rejected" selected="@(selectedStatus == "Rejected")">Rejected</option>
++                    <option value="@RequestStatuses.Pending" selected="@(selectedStatus == RequestStatuses.Pending)">Pending</option>
++                    <option value="@RequestStatuses.Approved" selected="@(selectedStatus == RequestStatuses.Approved)">Approved</option>
++                    <option value="@RequestStatuses.Rejected" selected="@(selectedStatus == RequestStatuses.Rejected)">Rejected</option>
+                 </select>
+             </div>
+ 
+@@ -245,15 +245,15 @@
+                                             <td class="text-muted">@FormatDate(r.RequestDate)</td>
+ 
+                                             <td>
+-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
++                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     <span class="badge bg-warning text-dark">Pending</span>
+                                                 }
+-                                                else if (st.Equals("Approved", StringComparison.OrdinalIgnoreCase))
++                                                else if (st.Equals(RequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     <span class="badge bg-success">Approved</span>
+                                                 }
+-                                                else if (st.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
++                                                else if (st.Equals(RequestStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     <span class="badge bg-danger">Rejected</span>
+                                                 }
+@@ -264,7 +264,7 @@
+                                             </td>
+ 
+                                             <td class="text-center">
+-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
++                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     <button type="button"
+                                                             class="btn btn-sm btn-outline-wine btn-approve-blood"
+@@ -352,15 +352,15 @@
+                                             <td class="text-muted">@r.RequestDate.ToString("dd/MM/yyyy")</td>
+ 
+                                             <td>
+-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
++                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     <span class="badge bg-warning text-dark">Pending</span>
+                                                 }
+-                                                else if (st.Equals("Approved", StringComparison.OrdinalIgnoreCase))
++                                                else if (st.Equals(RequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     <span class="badge bg-success">Approved</span>
+                                                 }
+-                                                else if (st.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
++                                                else if (st.Equals(RequestStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     <span class="badge bg-danger">Rejected</span>
+                                                 }
+@@ -374,7 +374,7 @@
+                                             <td>@(r.ApprovedByUserName ?? "-")</td>
+ 
+                                             <td class="text-center">
+-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
++                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                                                 {
+                                                     bool isVerified = r.IsDonorMedicalVerified;
+ 
+diff --git a/Views/Shared/_DonorDashboard.cshtml b/Views/Shared/_DonorDashboard.cshtml
+index 1c613e859d03fe901930498cf99ad520acbf9976..ce9df51e736c8213da2489e65b0f53d0a6c84a02 100644
+--- a/Views/Shared/_DonorDashboard.cshtml
++++ b/Views/Shared/_DonorDashboard.cshtml
+@@ -159,15 +159,15 @@
+                                     <td>@sn</td>
+                                     <td>@r.RequestDate.ToString("dd/MM/yyyy")</td>
+                                     <td>
+-                                        @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
++                                        @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                                         {
+                                             <span class="badge bg-warning text-dark">Pending</span>
+                                         }
+-                                        else if (st.Equals("Approved", StringComparison.OrdinalIgnoreCase))
++                                        else if (st.Equals(RequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+                                         {
+                                             <span class="badge bg-success">Approved</span>
+                                         }
+-                                        else if (st.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
++                                        else if (st.Equals(RequestStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
+                                         {
+                                             <span class="badge bg-danger">Rejected</span>
+                                         }
+diff --git a/Views/Shared/_HospitalDashboard.cshtml b/Views/Shared/_HospitalDashboard.cshtml
+index 60fe069aba235fd5d460b8873c4ac628c7b9a562..51dfde6b182f031e891e3f19533364ac9a43d74e 100644
+--- a/Views/Shared/_HospitalDashboard.cshtml
++++ b/Views/Shared/_HospitalDashboard.cshtml
+@@ -86,15 +86,15 @@
+                                     </td>
+ 
+                                     <td>
+-                                        @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
++                                        @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
+                                         {
+                                             <span class="badge bg-warning text-dark">Pending</span>
+                                         }
+-                                        else if (st.Equals("Approved", StringComparison.OrdinalIgnoreCase))
++                                        else if (st.Equals(RequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
+                                         {
+                                             <span class="badge badge-wine text-white">Approved</span>
+                                         }
+-                                        else if (st.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
++                                        else if (st.Equals(RequestStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
+                                         {
+                                             <span class="badge bg-danger">Rejected</span>
+                                         }
+diff --git a/Views/_ViewImports.cshtml b/Views/_ViewImports.cshtml
+index fcdfff300989b186c419bccc4b473bb41a03c717..eecc41965366159018beb5904644525266971f0a 100644
+--- a/Views/_ViewImports.cshtml
++++ b/Views/_ViewImports.cshtml
+@@ -1,4 +1,5 @@
+ ﻿@using Blood_Donations_Project
+ @using Blood_Donations_Project.Models
+ @using Blood_Donations_Project.ViewModels
++@using Blood_Donations_Project.Common
+ @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers

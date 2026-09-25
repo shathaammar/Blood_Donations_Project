@@ -89,7 +89,7 @@ namespace Blood_Donations_Project.Services
                 .FirstOrDefaultAsync();
 
             var lastApprovedDonationDate = await _context.Donations
-                .Where(d => d.UserId == userId && d.Status == "Approved")
+                .Where(d => d.UserId == userId && d.Status == RequestStatuses.Approved)
                 .OrderByDescending(d => d.DonationDate)
                 .Select(d => d.DonationDate)
                 .FirstOrDefaultAsync();
@@ -114,9 +114,9 @@ namespace Blood_Donations_Project.Services
                 Requests = requests,
                 // Same counting rules the view used (trimmed, case-insensitive).
                 TotalRequests = requests.Count,
-                PendingRequests = requests.Count(x => HasStatus(x.Status, "Pending")),
-                ApprovedRequests = requests.Count(x => HasStatus(x.Status, "Approved")),
-                RejectedRequests = requests.Count(x => HasStatus(x.Status, "Rejected"))
+                PendingRequests = requests.Count(x => HasStatus(x.Status, RequestStatuses.Pending)),
+                ApprovedRequests = requests.Count(x => HasStatus(x.Status, RequestStatuses.Approved)),
+                RejectedRequests = requests.Count(x => HasStatus(x.Status, RequestStatuses.Rejected))
             };
         }
 

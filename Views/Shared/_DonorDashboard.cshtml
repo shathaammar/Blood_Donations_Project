@@ -159,15 +159,15 @@
                                     <td>@sn</td>
                                     <td>@r.RequestDate.ToString("dd/MM/yyyy")</td>
                                     <td>
-                                        @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                        @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
                                         {
                                             <span class="badge bg-warning text-dark">Pending</span>
                                         }
-                                        else if (st.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                                        else if (st.Equals(RequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
                                         {
                                             <span class="badge bg-success">Approved</span>
                                         }
-                                        else if (st.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+                                        else if (st.Equals(RequestStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
                                         {
                                             <span class="badge bg-danger">Rejected</span>
                                         }

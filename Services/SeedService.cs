@@ -1,4 +1,5 @@
-﻿using Blood_Donations_Project.Models;
+﻿using Blood_Donations_Project.Common;
+using Blood_Donations_Project.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -57,10 +58,10 @@ namespace Blood_Donations_Project.Services
 
                 var roles = new List<Role>
                 {
-                    new Role { RoleName = "Admin" },
-                    new Role { RoleName = "Donor" },
-                    new Role { RoleName = "Hospital" },
-                    new Role { RoleName = "BloodBank" }
+                    new Role { RoleName = AppRoles.Admin },
+                    new Role { RoleName = AppRoles.Donor },
+                    new Role { RoleName = AppRoles.Hospital },
+                    new Role { RoleName = AppRoles.BloodBank }
                 };
 
                 await context.Roles.AddRangeAsync(roles);
@@ -124,7 +125,7 @@ namespace Blood_Donations_Project.Services
 
                 logger.LogInformation("Adding admin user...");
 
-                var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Admin");
+                var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == AppRoles.Admin);
 
                 if (adminRole == null)
                 {

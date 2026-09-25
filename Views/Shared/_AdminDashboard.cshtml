@@ -9,7 +9,7 @@
     int totalDonationRequests = Model.TotalDonationRequests;
 
     var selectedTable = Model.SelectedTable ?? "BloodRequests";
-    var selectedStatus = Model.SelectedStatus ?? "Pending";
+    var selectedStatus = Model.SelectedStatus ?? RequestStatuses.Pending;
 
     var bloodRequests = Model.BloodRequests;
     var donorRequests = Model.DonationRequests;
@@ -179,9 +179,9 @@
                 <label class="form-label text-muted small mb-1">Status</label>
                 <select class="form-select" name="status" id="statusSelect">
                     <option value="All" selected="@(selectedStatus == "All")">All</option>
-                    <option value="Pending" selected="@(selectedStatus == "Pending")">Pending</option>
-                    <option value="Approved" selected="@(selectedStatus == "Approved")">Approved</option>
-                    <option value="Rejected" selected="@(selectedStatus == "Rejected")">Rejected</option>
+                    <option value="@RequestStatuses.Pending" selected="@(selectedStatus == RequestStatuses.Pending)">Pending</option>
+                    <option value="@RequestStatuses.Approved" selected="@(selectedStatus == RequestStatuses.Approved)">Approved</option>
+                    <option value="@RequestStatuses.Rejected" selected="@(selectedStatus == RequestStatuses.Rejected)">Rejected</option>
                 </select>
             </div>
 
@@ -245,15 +245,15 @@
                                             <td class="text-muted">@FormatDate(r.RequestDate)</td>
 
                                             <td>
-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <span class="badge bg-warning text-dark">Pending</span>
                                                 }
-                                                else if (st.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                                                else if (st.Equals(RequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <span class="badge bg-success">Approved</span>
                                                 }
-                                                else if (st.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+                                                else if (st.Equals(RequestStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <span class="badge bg-danger">Rejected</span>
                                                 }
@@ -264,7 +264,7 @@
                                             </td>
 
                                             <td class="text-center">
-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <button type="button"
                                                             class="btn btn-sm btn-outline-wine btn-approve-blood"
@@ -352,15 +352,15 @@
                                             <td class="text-muted">@r.RequestDate.ToString("dd/MM/yyyy")</td>
 
                                             <td>
-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <span class="badge bg-warning text-dark">Pending</span>
                                                 }
-                                                else if (st.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                                                else if (st.Equals(RequestStatuses.Approved, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <span class="badge bg-success">Approved</span>
                                                 }
-                                                else if (st.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+                                                else if (st.Equals(RequestStatuses.Rejected, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     <span class="badge bg-danger">Rejected</span>
                                                 }
@@ -374,7 +374,7 @@
                                             <td>@(r.ApprovedByUserName ?? "-")</td>
 
                                             <td class="text-center">
-                                                @if (st.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                                                @if (st.Equals(RequestStatuses.Pending, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     bool isVerified = r.IsDonorMedicalVerified;
 

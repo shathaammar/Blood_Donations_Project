@@ -1,8 +1,12 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Blood_Donations_Project.ViewModels
+namespace Blood_Donations_Project.ViewModels.Hospitals
 {
-    public class HospitalCreate
+    /// <summary>
+    /// Admin "Add Hospital" form (Views/Admin/AddHospital.cshtml).
+    /// Previously ViewModels.HospitalCreate; properties and validation are unchanged.
+    /// </summary>
+    public class HospitalCreateViewModel
     {
         [Required]
         public string UserName { get; set; } = "";

@@ -124,12 +124,12 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public IActionResult AddHospital()
         {
-            return View(new HospitalCreate());
+            return View(new HospitalCreateViewModel());
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddHospital(HospitalCreate model)
+        public async Task<IActionResult> AddHospital(HospitalCreateViewModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
@@ -162,7 +162,7 @@ namespace Blood_Donations_Project.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditHospital(HospitalEdit model)
+        public async Task<IActionResult> EditHospital(HospitalEditViewModel model)
         {
             if (!ModelState.IsValid)
                 return View(model);
