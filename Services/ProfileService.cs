@@ -9,10 +9,12 @@ namespace Blood_Donations_Project.Services
     public class ProfileService : IProfileService
     {
         private readonly BloodDonationContext _context;
+        private readonly IBloodTypeLookupService _bloodTypeLookup;
 
-        public ProfileService(BloodDonationContext context)
+        public ProfileService(BloodDonationContext context, IBloodTypeLookupService bloodTypeLookup)
         {
             _context = context;
+            _bloodTypeLookup = bloodTypeLookup;
         }
 
         // ---------------- Read ----------------
@@ -138,20 +140,8 @@ namespace Blood_Donations_Project.Services
             model.DateOfBirth = isDonor ? user?.DateOfBirth : null;
 
             model.BloodTypeOptions = isDonor
-                ? await GetBloodTypeOptionsAsync()
+                ? await _bloodTypeLookup.GetBloodTypeOptionsAsync()
                 : new List<BloodTypeOptionViewModel>();
-        }
-
-        private async Task<List<BloodTypeOptionViewModel>> GetBloodTypeOptionsAsync()
-        {
-            // Same query and (unordered) sequence as the previous ViewBag.BloodTypes.
-            return await _context.BloodTypes
-                .Select(bt => new BloodTypeOptionViewModel
-                {
-                    BloodTypeId = bt.BloodTypeId,
-                    TypeName = bt.TypeName
-                })
-                .ToListAsync();
         }
 
         private static bool IsDonor(string role)

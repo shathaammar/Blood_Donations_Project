@@ -27,6 +27,12 @@ namespace Blood_Donations_Project.Services
         /// </summary>
         Task<ServiceResult> CheckSubmissionWaitingPeriodForSubmitAsync(int donorUserId);
 
+        /// <summary>
+        /// Submission rule: the date the donor may request again (3 months after the latest
+        /// DonationRequest date, any status), or null when a new request is allowed now.
+        /// </summary>
+        Task<DateTime?> GetSubmissionBlockedUntilAsync(int donorUserId);
+
         Task<ServiceResult> CreateRequestAsync(int donorUserId);
 
         Task<ServiceResult> ApproveRequestAsync(int requestId, int adminUserId);

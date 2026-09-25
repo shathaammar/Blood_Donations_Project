@@ -18,6 +18,7 @@ namespace Blood_Donations_Project
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
             builder.Services.AddScoped<IInventoryService, InventoryService>();
+            builder.Services.AddScoped<IBloodTypeLookupService, BloodTypeLookupService>();
             builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             builder.Services.AddScoped<IHospitalService, HospitalService>();
             builder.Services.AddScoped<IDonorManagementService, DonorManagementService>();

@@ -11,11 +11,19 @@ namespace Blood_Donations_Project.Services
     {
         private readonly BloodDonationContext _context;
         private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly IBloodTypeLookupService _bloodTypeLookup;
+        private readonly IDonorEligibilityService _eligibility;
 
-        public AccountService(BloodDonationContext context, IPasswordHasher<User> passwordHasher)
+        public AccountService(
+            BloodDonationContext context,
+            IPasswordHasher<User> passwordHasher,
+            IBloodTypeLookupService bloodTypeLookup,
+            IDonorEligibilityService eligibility)
         {
             _context = context;
             _passwordHasher = passwordHasher;
+            _bloodTypeLookup = bloodTypeLookup;
+            _eligibility = eligibility;
         }
 
         // ---------------- Login ----------------
@@ -41,17 +49,8 @@ namespace Blood_Donations_Project.Services
 
         // ---------------- Register ----------------
 
-        public async Task<List<BloodTypeOptionViewModel>> GetBloodTypeOptionsAsync()
-        {
-            // Same query and (unordered) sequence as the previous ViewBag.BloodTypes.
-            return await _context.BloodTypes
-                .Select(bt => new BloodTypeOptionViewModel
-                {
-                    BloodTypeId = bt.BloodTypeId,
-                    TypeName = bt.TypeName
-                })
-                .ToListAsync();
-        }
+        public Task<List<BloodTypeOptionViewModel>> GetBloodTypeOptionsAsync()
+            => _bloodTypeLookup.GetBloodTypeOptionsAsync();
 
         public IReadOnlyList<ServiceResult> ValidateRegistration(RegisterViewModel model)
         {
@@ -61,8 +60,8 @@ namespace Blood_Donations_Project.Services
                 errors.Add(ServiceResult.Fail("Date of birth is required.", nameof(RegisterViewModel.DateOfBirth)));
             else
             {
-                var age = CalculateAge(model.DateOfBirth.Value);
-                if (age < 18)
+                // Same rule as before: age from DateTime.Today, minimum 18.
+                if (!_eligibility.IsOldEnough(model.DateOfBirth.Value, DateTime.Today))
                     errors.Add(ServiceResult.Fail("You must be 18 or older to register as a donor.", nameof(RegisterViewModel.DateOfBirth)));
             }
 
@@ -189,16 +188,6 @@ namespace Blood_Donations_Project.Services
             await _context.SaveChangesAsync();
 
             return ServiceResult.Ok("Password reset successfully. Please login.");
-        }
-
-        // ---------------- Helpers ----------------
-
-        private static int CalculateAge(DateTime dob)
-        {
-            var today = DateTime.Today;
-            var age = today.Year - dob.Year;
-            if (dob.Date > today.AddYears(-age)) age--;
-            return age;
         }
     }
 }

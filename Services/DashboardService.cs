@@ -9,16 +9,18 @@ namespace Blood_Donations_Project.Services
     {
         private readonly BloodDonationContext _context;
         private readonly IBloodRequestService _bloodRequestService;
-        private readonly IDonorEligibilityService _eligibility;
+        private readonly IDonationRequestService _donationRequestService;
 
+        // Orchestration service: reuses the blood-request and donation-request services
+        // (neither of them depends on DashboardService).
         public DashboardService(
             BloodDonationContext context,
             IBloodRequestService bloodRequestService,
-            IDonorEligibilityService eligibility)
+            IDonationRequestService donationRequestService)
         {
             _context = context;
             _bloodRequestService = bloodRequestService;
-            _eligibility = eligibility;
+            _donationRequestService = donationRequestService;
         }
 
         public async Task<DashboardViewModel> GetDashboardAsync(int userId, string role, string? table, string? status)
@@ -92,14 +94,9 @@ namespace Blood_Donations_Project.Services
                 .Select(d => d.DonationDate)
                 .FirstOrDefaultAsync();
 
-            // Current submission rule, unchanged: latest DonationRequest date, any status.
-            var lastRequestedDate = await _context.DonationRequests
-                .Where(r => r.UserId == userId)
-                .OrderByDescending(r => r.RequestDate)
-                .Select(r => (DateOnly?)r.RequestDate)
-                .FirstOrDefaultAsync();
-
-            var canDonate = _eligibility.GetSubmissionBlockedUntil(lastRequestedDate, DateTime.Now) == null;
+            // Current submission rule, unchanged: latest DonationRequest date, any status
+            // (same query and waiting period used by Donor/RequestDonation).
+            var canDonate = await _donationRequestService.GetSubmissionBlockedUntilAsync(userId) == null;
 
             var requests = await _context.DonationRequests
                 .Where(r => r.UserId == userId)

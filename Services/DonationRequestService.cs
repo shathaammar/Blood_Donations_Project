@@ -89,7 +89,7 @@ namespace Blood_Donations_Project.Services
         private Task<bool> HasPendingRequestAsync(int donorUserId)
             => _context.DonationRequests.AnyAsync(r => r.UserId == donorUserId && r.Status == "Pending");
 
-        private async Task<DateTime?> GetSubmissionBlockedUntilAsync(int donorUserId)
+        public async Task<DateTime?> GetSubmissionBlockedUntilAsync(int donorUserId)
         {
             // Submission rule: latest DonationRequest date, regardless of its status.
             var lastRequestedDate = await _context.DonationRequests

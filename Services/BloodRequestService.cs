@@ -11,24 +11,20 @@ namespace Blood_Donations_Project.Services
     {
         private readonly BloodDonationContext _context;
         private readonly IInventoryService _inventoryService;
+        private readonly IBloodTypeLookupService _bloodTypeLookup;
 
-        public BloodRequestService(BloodDonationContext context, IInventoryService inventoryService)
+        public BloodRequestService(
+            BloodDonationContext context,
+            IInventoryService inventoryService,
+            IBloodTypeLookupService bloodTypeLookup)
         {
             _context = context;
             _inventoryService = inventoryService;
+            _bloodTypeLookup = bloodTypeLookup;
         }
 
-        public async Task<List<BloodTypeOptionViewModel>> GetBloodTypeOptionsAsync()
-        {
-            // Same query and (unordered) sequence as the previous ViewBag.BloodTypes.
-            return await _context.BloodTypes
-                .Select(bt => new BloodTypeOptionViewModel
-                {
-                    BloodTypeId = bt.BloodTypeId,
-                    TypeName = bt.TypeName
-                })
-                .ToListAsync();
-        }
+        public Task<List<BloodTypeOptionViewModel>> GetBloodTypeOptionsAsync()
+            => _bloodTypeLookup.GetBloodTypeOptionsAsync();
 
         public async Task<ServiceResult> CreateRequestAsync(int hospitalUserId, RequestBloodViewModel model)
         {
