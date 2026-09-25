@@ -1,29 +1,24 @@
 ﻿using Blood_Donations_Project.Filters;
-using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
-using Blood_Donations_Project.ViewModels;
+using Blood_Donations_Project.ViewModels.Account;
 using Blood_Donations_Project.ViewModels.Profile;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace Blood_Donations_Project.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly BloodDonationContext _context;
-        private readonly IConfiguration _config;
+        private readonly IAccountService _accountService;
+        private readonly IJwtTokenService _jwtTokenService;
         private readonly IProfileService _profileService;
 
-        public AccountController(BloodDonationContext context, IConfiguration config, IProfileService profileService)
+        public AccountController(
+            IAccountService accountService,
+            IJwtTokenService jwtTokenService,
+            IProfileService profileService)
         {
-            _context = context;
-            _config = config;
+            _accountService = accountService;
+            _jwtTokenService = jwtTokenService;
             _profileService = profileService;
         }
 
@@ -39,47 +34,14 @@ namespace Blood_Donations_Project.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            var user = await _context.Users
-                .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.Email == model.Email);
-
+            var user = await _accountService.ValidateCredentialsAsync(model.Email, model.Password);
             if (user == null)
             {
                 ModelState.AddModelError("", "Invalid email or password.");
                 return View(model);
             }
 
-            var hasher = new PasswordHasher<User>();
-            var result = hasher.VerifyHashedPassword(user, user.Password, model.Password);
-
-            if (result == PasswordVerificationResult.Failed)
-            {
-                ModelState.AddModelError("", "Invalid email or password.");
-                return View(model);
-            }
-
-            var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""),
-                new Claim(ClaimTypes.Role, user.Role?.RoleName ?? "")
-            };
-
-            var keyString = _config["Jwt:Key"];
-            if (string.IsNullOrEmpty(keyString))
-                throw new Exception("JWT Key is missing in appsettings.json");
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
-
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: model.RememberMe ? DateTime.UtcNow.AddDays(7) : DateTime.UtcNow.AddHours(2),
-                signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
-            );
-
-            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+            var tokenString = _jwtTokenService.CreateToken(user, model.RememberMe);
 
             Response.Cookies.Append("jwt", tokenString, new CookieOptions
             {
@@ -89,7 +51,7 @@ namespace Blood_Donations_Project.Controllers
                 Expires = model.RememberMe ? DateTimeOffset.Now.AddDays(7) : DateTimeOffset.Now.AddHours(2)
             });
 
-            HttpContext.Session.SetString("UserRole", user.Role?.RoleName ?? "");
+            HttpContext.Session.SetString("UserRole", user.RoleName ?? "");
             HttpContext.Session.SetString("UserId", user.UserId.ToString());
 
             return RedirectToAction("Dashboard", "Admin");
@@ -100,112 +62,37 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> Register()
         {
-            await LoadRegisterDropdowns();
-            return View();
+            var model = new RegisterViewModel
+            {
+                BloodTypeOptions = await _accountService.GetBloodTypeOptionsAsync()
+            };
+
+            return View(model);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Register(RegisterViewModel model)
         {
-            if (model.DateOfBirth == null)
-                ModelState.AddModelError(nameof(model.DateOfBirth), "Date of birth is required.");
-            else
-            {
-                var age = CalculateAge(model.DateOfBirth.Value);
-                if (age < 18)
-                    ModelState.AddModelError(nameof(model.DateOfBirth), "You must be 18 or older to register as a donor.");
-            }
-
-            if (!model.BloodTypeId.HasValue)
-                ModelState.AddModelError(nameof(model.BloodTypeId), "Blood type is required.");
-
-            if (string.IsNullOrWhiteSpace(model.Gender))
-                ModelState.AddModelError(nameof(model.Gender), "Gender is required.");
+            foreach (var error in _accountService.ValidateRegistration(model))
+                ModelState.AddModelError(error.FieldName ?? string.Empty, error.Message);
 
             if (!ModelState.IsValid)
             {
-                await LoadRegisterDropdowns();
+                model.BloodTypeOptions = await _accountService.GetBloodTypeOptionsAsync();
                 return View(model);
             }
 
-            if (await _context.Users.AnyAsync(u => u.Email == model.Email))
+            var result = await _accountService.RegisterDonorAsync(model);
+            if (!result.Success)
             {
-                ModelState.AddModelError(nameof(model.Email), "Email already exists.");
-                await LoadRegisterDropdowns();
+                ModelState.AddModelError(result.FieldName ?? string.Empty, result.Message);
+                model.BloodTypeOptions = await _accountService.GetBloodTypeOptionsAsync();
                 return View(model);
             }
 
-            if (await _context.Users.AnyAsync(u => u.UserName == model.UserName))
-            {
-                ModelState.AddModelError(nameof(model.UserName), "Username already exists.");
-                await LoadRegisterDropdowns();
-                return View(model);
-            }
-
-            var donorRoleId = await _context.Roles
-                .Where(r => r.RoleName == "Donor")
-                .Select(r => r.RoleId)
-                .FirstOrDefaultAsync();
-
-            if (donorRoleId == 0)
-            {
-                ModelState.AddModelError("", "Donor role not configured.");
-                await LoadRegisterDropdowns();
-                return View(model);
-            }
-
-            var hasher = new PasswordHasher<User>();
-
-            var user = new User
-            {
-                UserName = model.UserName,
-                Email = model.Email,
-                FullName = model.FullName,
-                MobileNo = model.MobileNo,
-                Address = model.Address,
-                RoleId = donorRoleId,
-                DateOfBirth = model.DateOfBirth!.Value,
-                Gender = model.Gender
-            };
-
-            user.Password = hasher.HashPassword(user, model.Password);
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            var donor = new Donor
-            {
-                UserId = user.UserId,
-                BloodTypeId = model.BloodTypeId!.Value,
-                HealthStatus = model.HealthStatus,
-                IsAvailable = true,
-                LastDonationDate = null,
-                IsMedicalVerified = false
-            };
-
-            _context.Donors.Add(donor);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Registration successful! Please login.";
+            TempData["SuccessMessage"] = result.Message;
             return RedirectToAction("Login");
-        }
-
-        private async Task LoadRegisterDropdowns()
-        {
-            var bloodTypes = await _context.BloodTypes
-                .Select(bt => new { bt.BloodTypeId, bt.TypeName })
-                .ToListAsync();
-
-            ViewBag.BloodTypes = new SelectList(bloodTypes, "BloodTypeId", "TypeName");
-        }
-
-        private int CalculateAge(DateTime dob)
-        {
-            var today = DateTime.Today;
-            var age = today.Year - dob.Year;
-            if (dob.Date > today.AddYears(-age)) age--;
-            return age;
         }
 
         // LOGOUT
@@ -283,7 +170,7 @@ namespace Blood_Donations_Project.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ForgotPassword(ForgotPassword model)
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
         {
             if (string.IsNullOrWhiteSpace(model.Email))
             {
@@ -291,34 +178,16 @@ namespace Blood_Donations_Project.Controllers
                 return View(model);
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == model.Email);
+            var reset = await _accountService.CreatePasswordResetTokenAsync(model.Email);
 
+            // Same response whether or not the email exists.
             TempData["SuccessMessage"] = "If the email exists, a reset link has been sent.";
 
-            if (user == null)
+            if (reset == null)
                 return RedirectToAction("Login");
 
-            var oldTokens = await _context.PasswordReset
-                .Where(t => t.UserId == user.UserId && !t.Used)
-                .ToListAsync();
-
-            if (oldTokens.Any())
-                _context.PasswordReset.RemoveRange(oldTokens);
-
-            var token = Guid.NewGuid().ToString("N");
-
-            _context.PasswordReset.Add(new PasswordReset
-            {
-                UserId = user.UserId,
-                Token = token,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-                Used = false
-            });
-
-            await _context.SaveChangesAsync();
-
             var resetUrl = Url.Action("ResetPassword", "Account",
-                new { email = user.Email, token = token }, Request.Scheme);
+                new { email = reset.Email, token = reset.Token }, Request.Scheme);
 
             Console.WriteLine("RESET LINK => " + resetUrl);
 
@@ -328,7 +197,7 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public IActionResult ResetPassword(string email, string token)
         {
-            return View(new ResetPassword
+            return View(new ResetPasswordViewModel
             {
                 Email = email ?? "",
                 Token = token ?? ""
@@ -337,53 +206,16 @@ namespace Blood_Donations_Project.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ResetPassword(ResetPassword model)
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
         {
-            if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Token))
+            var result = await _accountService.ResetPasswordAsync(model);
+            if (!result.Success)
             {
-                ModelState.AddModelError("", "Invalid reset link.");
+                ModelState.AddModelError(result.FieldName ?? string.Empty, result.Message);
                 return View(model);
             }
 
-            if (string.IsNullOrWhiteSpace(model.NewPassword))
-            {
-                ModelState.AddModelError("", "New password is required.");
-                return View(model);
-            }
-
-            if (model.NewPassword != model.ConfirmPassword)
-            {
-                ModelState.AddModelError("", "Passwords do not match.");
-                return View(model);
-            }
-
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == model.Email);
-            if (user == null)
-            {
-                ModelState.AddModelError("", "Invalid reset link.");
-                return View(model);
-            }
-
-            var tokenRow = await _context.PasswordReset
-                .FirstOrDefaultAsync(t =>
-                    t.UserId == user.UserId &&
-                    t.Token == model.Token &&
-                    !t.Used);
-
-            if (tokenRow == null || tokenRow.ExpiresAt < DateTime.UtcNow)
-            {
-                ModelState.AddModelError("", "Reset link expired or invalid.");
-                return View(model);
-            }
-
-            var hasher = new PasswordHasher<User>();
-            user.Password = hasher.HashPassword(user, model.NewPassword);
-
-            tokenRow.Used = true;
-
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Password reset successfully. Please login.";
+            TempData["SuccessMessage"] = result.Message;
             return RedirectToAction("Login");
         }
     }

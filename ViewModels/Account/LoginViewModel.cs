@@ -1,6 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
-namespace Blood_Donations_Project.ViewModels
+namespace Blood_Donations_Project.ViewModels.Account
 {
     public class LoginViewModel
     {

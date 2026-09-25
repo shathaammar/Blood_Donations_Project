@@ -1,6 +1,6 @@
-﻿namespace Blood_Donations_Project.ViewModels
+namespace Blood_Donations_Project.ViewModels.Account
 {
-    public class ResetPassword
+    public class ResetPasswordViewModel
     {
         public string Email { get; set; } = "";
         public string Token { get; set; } = "";

@@ -1,6 +1,8 @@
-﻿@model Blood_Donations_Project.ViewModels.RegisterViewModel
+﻿@model Blood_Donations_Project.ViewModels.Account.RegisterViewModel
 @{
     ViewData["Title"] = "Register";
+
+    var bloodTypeSelectList = new SelectList(Model.BloodTypeOptions, "BloodTypeId", "TypeName");
 }
 
 <div class="auth-page">
@@ -87,7 +89,7 @@
 
                             <div class="col-md-6 mb-3">
                                 <label asp-for="BloodTypeId" class="form-label">Blood Type</label>
-                                <select asp-for="BloodTypeId" class="form-select" asp-items="ViewBag.BloodTypes">
+                                <select asp-for="BloodTypeId" class="form-select" asp-items="bloodTypeSelectList">
                                     <option value="">Select Blood Type</option>
                                 </select>
                                 <span asp-validation-for="BloodTypeId" class="text-danger"></span>

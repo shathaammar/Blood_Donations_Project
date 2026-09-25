@@ -346,8 +346,8 @@ namespace Blood_Donations_Project.Controllers
         public async Task<IActionResult> Statistics()
         {
             var bloodTypeStats = await _context.Donors
-                .Include(d => d.BloodType)
-                .GroupBy(d => d.BloodType.TypeName)
+                .Where(d => d.BloodType != null)
+                .GroupBy(d => d.BloodType!.TypeName)
                 .Select(g => new
                 {
                     BloodType = g.Key,

@@ -1,7 +1,9 @@
-﻿using Blood_Donations_Project.Models;
 using System.ComponentModel.DataAnnotations;
+using Blood_Donations_Project.ViewModels.Shared;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
-namespace Blood_Donations_Project.ViewModels
+namespace Blood_Donations_Project.ViewModels.Account
 {
     public class RegisterViewModel
     {
@@ -47,5 +49,11 @@ namespace Blood_Donations_Project.ViewModels
         [Required(ErrorMessage = "Blood type is required")]
         public int? BloodTypeId { get; set; }
         public string? Gender { get; set; }
+
+        // ---------- Display-only (prepared by AccountService, never bound) ----------
+
+        /// <summary>Blood type dropdown options (previously ViewBag.BloodTypes).</summary>
+        [BindNever, ValidateNever]
+        public List<BloodTypeOptionViewModel> BloodTypeOptions { get; set; } = new();
     }
 }

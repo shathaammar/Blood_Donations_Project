@@ -26,6 +26,8 @@ namespace Blood_Donations_Project
             builder.Services.AddScoped<IDonationRequestService, DonationRequestService>();
             builder.Services.AddScoped<IDashboardService, DashboardService>();
             builder.Services.AddScoped<IProfileService, ProfileService>();
+            builder.Services.AddScoped<IAccountService, AccountService>();
+            builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
             builder.Services.AddControllersWithViews();
 
