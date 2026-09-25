@@ -1,5 +1,6 @@
 using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Models;
+using Blood_Donations_Project.ViewModels.Inventory;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blood_Donations_Project.Services
@@ -13,11 +14,17 @@ namespace Blood_Donations_Project.Services
             _context = context;
         }
 
-        public async Task<List<BloodInventory>> GetInventoryAsync()
+        public async Task<List<InventoryRowViewModel>> GetInventoryAsync()
         {
+            // Same ordering as before; projected in the query instead of loading entities.
             return await _context.BloodInventories
-                .Include(i => i.BloodType)
                 .OrderBy(i => i.BloodType!.TypeName)
+                .Select(i => new InventoryRowViewModel
+                {
+                    Id = i.Id,
+                    BloodTypeName = i.BloodType != null ? i.BloodType.TypeName : null,
+                    UnitsAvailable = i.UnitsAvailable
+                })
                 .ToListAsync();
         }
 

@@ -1,11 +1,12 @@
 using Blood_Donations_Project.Common;
-using Blood_Donations_Project.Models;
+using Blood_Donations_Project.ViewModels.Inventory;
 
 namespace Blood_Donations_Project.Services
 {
     public interface IInventoryService
     {
-        Task<List<BloodInventory>> GetInventoryAsync();
+        /// <summary>Stock rows for Admin/BloodAvailability, ordered by blood type name.</summary>
+        Task<List<InventoryRowViewModel>> GetInventoryAsync();
         Task<ServiceResult> SetUnitsAsync(int inventoryId, int units);
         Task<ServiceResult> AddUnitsAsync(int inventoryId, int amount);
         Task<ServiceResult> RemoveUnitsAsync(int inventoryId, int amount);
