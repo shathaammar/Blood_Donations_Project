@@ -1,4 +1,5 @@
 ﻿using Blood_Donations_Project.Common;
+using Blood_Donations_Project.Extensions;
 using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels.BloodRequests;
@@ -25,8 +26,7 @@ namespace Blood_Donations_Project.Controllers
 
         public async Task<IActionResult> RequestBlood()
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(userIdStr, out var userId))
+            if (HttpContext.Session.GetUserId() == null)
                 return RedirectToAction("Login", "Account");
 
             var model = new RequestBloodViewModel
@@ -41,9 +41,7 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RequestBlood(RequestBloodViewModel model)
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-
-            if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            if (HttpContext.Session.GetUserId() is not int userId)
                 return RedirectToAction("Login", "Account");
 
             if (!ModelState.IsValid)

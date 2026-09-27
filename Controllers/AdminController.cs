@@ -1,4 +1,5 @@
 ﻿using Blood_Donations_Project.Common;
+using Blood_Donations_Project.Extensions;
 using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
@@ -45,10 +46,9 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize]
         public async Task<IActionResult> Dashboard(string table = "BloodRequests", string status = "All")
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            var role = HttpContext.Session.GetString("UserRole");
+            var role = HttpContext.Session.GetUserRole();
 
-            if (!int.TryParse(userIdStr, out var userId) || string.IsNullOrWhiteSpace(role))
+            if (HttpContext.Session.GetUserId() is not int userId || string.IsNullOrWhiteSpace(role))
                 return RedirectToAction("Login", "Account");
 
             var model = await _dashboardService.GetDashboardAsync(userId, role, table, status);
@@ -105,8 +105,7 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var myIdStr = HttpContext.Session.GetString("UserId");
-            int? currentUserId = int.TryParse(myIdStr, out var myId) ? myId : null;
+            var currentUserId = HttpContext.Session.GetUserId();
 
             var result = await _donorService.DeleteDonorAsync(id, currentUserId);
             return Json(new { success = result.Success, message = result.Message });
@@ -189,9 +188,7 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteHospital(int id)
         {
-            var userIdValue = HttpContext.Session.GetString("UserId");
-
-            if (!int.TryParse(userIdValue, out var currentUserId))
+            if (HttpContext.Session.GetUserId() is not int currentUserId)
                 return RedirectToAction("Login", "Account");
 
             var result = await _hospitalService.DeleteHospitalAsync(
@@ -288,8 +285,7 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveBloodRequest(int id)
         {
-            var adminIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(adminIdStr, out var adminId))
+            if (HttpContext.Session.GetUserId() is not int adminId)
                 return Json(new { success = false, message = "Not authorized" });
 
             var result = await _bloodRequestService.ApproveRequestAsync(id);
@@ -300,8 +296,7 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RejectBloodRequest(int id)
         {
-            var adminIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(adminIdStr, out var adminId))
+            if (HttpContext.Session.GetUserId() is not int adminId)
                 return Json(new { success = false, message = "Not authorized" });
 
             var result = await _bloodRequestService.RejectRequestAsync(id);
@@ -312,8 +307,7 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> VerifyDonorMedical(int userId)
         {
-            var adminIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(adminIdStr, out var adminId))
+            if (HttpContext.Session.GetUserId() is not int adminId)
                 return Json(new { success = false, message = "Not authorized" });
 
             var result = await _donorService.VerifyMedicalAsync(userId, adminId);
@@ -325,8 +319,8 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveDonorRequest(int id)
         {
-            var adminIdStr = HttpContext.Session.GetString("UserId");
-            int.TryParse(adminIdStr, out var adminId);
+            // Existing behavior: a missing/invalid id is passed on as 0.
+            var adminId = HttpContext.Session.GetUserId() ?? 0;
 
             var result = await _donationRequestService.ApproveRequestAsync(id, adminId);
             return Json(new { success = result.Success, message = result.Message });
@@ -336,8 +330,8 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RejectDonorRequest(int id)
         {
-            var adminIdStr = HttpContext.Session.GetString("UserId");
-            int.TryParse(adminIdStr, out var adminId);
+            // Existing behavior: a missing/invalid id is passed on as 0.
+            var adminId = HttpContext.Session.GetUserId() ?? 0;
 
             var result = await _donationRequestService.RejectRequestAsync(id, adminId);
             return Json(new { success = result.Success, message = result.Message });

@@ -1,3 +1,4 @@
+using Blood_Donations_Project.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -37,11 +38,10 @@ namespace Blood_Donations_Project.Filters
                 return;
 
             var session = context.HttpContext.Session;
-            var userIdStr = session.GetString("UserId");
             // Login stores the role name exactly as it is in the Roles table.
-            var role = session.GetString("UserRole");
+            var role = session.GetUserRole();
 
-            if (!int.TryParse(userIdStr, out _) || string.IsNullOrWhiteSpace(role))
+            if (session.GetUserId() == null || string.IsNullOrWhiteSpace(role))
             {
                 context.Result = Ajax
                     ? new JsonResult(new { success = false, message = "Not authenticated. Please login again." })

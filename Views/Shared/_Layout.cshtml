@@ -71,7 +71,7 @@
         var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
         var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
 
-        var role = Context.Session.GetString("UserRole");
+        var role = Context.Session.GetString(SessionKeys.UserRole);
         var isLoggedIn = !string.IsNullOrWhiteSpace(role);
 
         bool isDashboardActive = (currentController == "Admin" && currentAction == "Dashboard");

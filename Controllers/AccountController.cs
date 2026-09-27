@@ -1,4 +1,5 @@
-﻿using Blood_Donations_Project.Filters;
+﻿using Blood_Donations_Project.Extensions;
+using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels.Account;
 using Blood_Donations_Project.ViewModels.Profile;
@@ -51,8 +52,7 @@ namespace Blood_Donations_Project.Controllers
                 Expires = model.RememberMe ? DateTimeOffset.Now.AddDays(7) : DateTimeOffset.Now.AddHours(2)
             });
 
-            HttpContext.Session.SetString("UserRole", user.RoleName ?? "");
-            HttpContext.Session.SetString("UserId", user.UserId.ToString());
+            HttpContext.Session.SetCurrentUser(user.UserId, user.RoleName ?? "");
 
             return RedirectToAction("Dashboard", "Admin");
         }
@@ -111,11 +111,10 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize]
         public async Task<IActionResult> Profile()
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(userIdStr, out var userId))
+            if (HttpContext.Session.GetUserId() is not int userId)
                 return RedirectToAction("Login");
 
-            var roleName = HttpContext.Session.GetString("UserRole") ?? "";
+            var roleName = HttpContext.Session.GetUserRole() ?? "";
 
             var model = await _profileService.GetProfileAsync(userId, roleName);
             if (model == null)
@@ -129,14 +128,13 @@ namespace Blood_Donations_Project.Controllers
         [SessionAuthorize]
         public async Task<IActionResult> Profile(ProfileViewModel model)
         {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(userIdStr, out var userId))
+            if (HttpContext.Session.GetUserId() is not int userId)
                 return RedirectToAction("Login");
 
             if (model.UserId != userId)
                 return Forbid();
 
-            var roleName = HttpContext.Session.GetString("UserRole") ?? "";
+            var roleName = HttpContext.Session.GetUserRole() ?? "";
 
             var canUpdate = _profileService.CheckCanUpdate(roleName);
             if (!canUpdate.Success)

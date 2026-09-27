@@ -1,4 +1,5 @@
 ﻿using Blood_Donations_Project.Common;
+using Blood_Donations_Project.Extensions;
 using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -15,12 +16,6 @@ namespace Blood_Donations_Project.Controllers
             _donationRequestService = donationRequestService;
         }
 
-        private int? GetUserId()
-        {
-            var userIdStr = HttpContext.Session.GetString("UserId");
-            return int.TryParse(userIdStr, out var id) ? id : null;
-        }
-
         // No Donor/Dashboard view exists: the shared role-aware dashboard lives at Admin/Dashboard.
         // Route kept (the RequestDonation POST waiting-period branch redirects here).
         public IActionResult Dashboard()
@@ -31,7 +26,7 @@ namespace Blood_Donations_Project.Controllers
         [HttpGet]
         public async Task<IActionResult> RequestDonation()
         {
-            var userId = GetUserId();
+            var userId = HttpContext.Session.GetUserId();
             if (userId == null) return RedirectToAction("Login", "Account");
 
             var check = await _donationRequestService.CheckCanOpenRequestFormAsync(userId.Value);
@@ -55,7 +50,7 @@ namespace Blood_Donations_Project.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RequestDonation(IFormCollection _)
         {
-            var userId = GetUserId();
+            var userId = HttpContext.Session.GetUserId();
             if (userId == null) return RedirectToAction("Login", "Account");
 
             var pending = await _donationRequestService.CheckNoPendingRequestForSubmitAsync(userId.Value);
