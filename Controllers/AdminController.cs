@@ -202,6 +202,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveBloodRequest(int id)
         {
@@ -213,6 +214,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RejectBloodRequest(int id)
         {
@@ -224,6 +226,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> VerifyDonorMedical(int userId)
         {
@@ -236,6 +239,7 @@ namespace Blood_Donations_Project.Controllers
 
         // Manage Donor Requests
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveDonorRequest(int id)
         {
@@ -247,6 +251,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RejectDonorRequest(int id)
         {
@@ -266,6 +271,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> UpdateInventoryUnits([FromBody] InventoryUnitsRequest dto)
         {
@@ -277,6 +283,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> AddInventoryUnits([FromBody] InventoryAmountRequest dto)
         {
@@ -288,6 +295,7 @@ namespace Blood_Donations_Project.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> RemoveInventoryUnits([FromBody] InventoryAmountRequest dto)
         {

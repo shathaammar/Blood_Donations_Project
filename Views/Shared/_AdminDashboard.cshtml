@@ -444,6 +444,9 @@
 </div>
 </div>
 
+@* Antiforgery token for the approve/reject/verify AJAX calls below (hidden input only). *@
+@Html.AntiForgeryToken()
+
 <script>
 
     function onTableChanged() {
@@ -469,10 +472,13 @@
                 btn.disabled = true;
             }
 
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+
             fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': tokenInput ? tokenInput.value : ''
                 }
             })
                 .then(r => r.json())

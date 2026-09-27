@@ -120,12 +120,19 @@
 
 </div>
 
+@* Antiforgery token for the inventory AJAX calls below (hidden input only). *@
+@Html.AntiForgeryToken()
+
 @section Scripts {
 <script>
     function postJson(url, payload) {
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
         return fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': tokenInput ? tokenInput.value : ''
+            },
             body: JSON.stringify(payload)
         }).then(r => r.json());
     }
