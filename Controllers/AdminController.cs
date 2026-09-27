@@ -88,7 +88,7 @@ namespace Blood_Donations_Project.Controllers
                 return View(model);
             }
 
-            TempData["Success"] = "Donor updated successfully.";
+            TempData["SuccessMessage"] = "Donor updated successfully.";
             return RedirectToAction(nameof(Users));
         }
 
@@ -136,7 +136,7 @@ namespace Blood_Donations_Project.Controllers
                 return View(model);
             }
 
-            TempData["Success"] = "Hospital account created successfully.";
+            TempData["SuccessMessage"] = "Hospital account created successfully.";
             return RedirectToAction(nameof(Hospitals));
         }
 
@@ -172,7 +172,7 @@ namespace Blood_Donations_Project.Controllers
                 return View(model);
             }
 
-            TempData["Success"] = "Hospital updated successfully.";
+            TempData["SuccessMessage"] = "Hospital updated successfully.";
             return RedirectToAction(nameof(Hospitals));
         }
 
@@ -197,7 +197,7 @@ namespace Blood_Donations_Project.Controllers
                 return RedirectToAction(nameof(Hospitals));
             }
 
-            TempData["Success"] = "Hospital deleted successfully.";
+            TempData["SuccessMessage"] = "Hospital deleted successfully.";
             return RedirectToAction(nameof(Hospitals));
         }
 
