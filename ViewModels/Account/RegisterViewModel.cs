@@ -12,32 +12,32 @@ namespace Blood_Donations_Project.ViewModels.Account
 
         [Required(ErrorMessage = "Username is required")]
         [StringLength(100)]
-        public string UserName { get; set; }
+        public string UserName { get; set; } = null!;
 
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Invalid email format")]
         [StringLength(150)]
-        public string Email { get; set; }
+        public string Email { get; set; } = null!;
 
         [Required(ErrorMessage = "Password is required")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters")]
         [DataType(DataType.Password)]
-        public string Password { get; set; }
+        public string Password { get; set; } = null!;
 
         [Required(ErrorMessage = "Confirm Password is required")]
         [DataType(DataType.Password)]
         [Compare("Password", ErrorMessage = "Passwords do not match")]
-        public string ConfirmPassword { get; set; }
+        public string ConfirmPassword { get; set; } = null!;
 
         [Required(ErrorMessage = "Full Name is required")]
         [StringLength(100)]
-        public string FullName { get; set; }
+        public string FullName { get; set; } = null!;
 
         [Phone, StringLength(100)]
-        public string MobileNo { get; set; }
+        public string MobileNo { get; set; } = null!;
 
         [StringLength(100)]
-        public string Address { get; set; }
+        public string Address { get; set; } = null!;
 
         [Required(ErrorMessage = "Date of Birth is required")]
         [DataType(DataType.Date)]

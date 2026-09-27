@@ -38,7 +38,7 @@ namespace Blood_Donations_Project.Services
                     Address = u.Address,
                     DateOfBirth = u.DateOfBirth,
                     Gender = u.Gender,
-                    BloodTypeName = u.Donors.Select(d => d.BloodType.TypeName).FirstOrDefault(),
+                    BloodTypeName = u.Donors.Select(d => d.BloodType!.TypeName).FirstOrDefault(),
                     HealthStatus = u.Donors.Select(d => d.HealthStatus).FirstOrDefault()
                 })
                 .OrderBy(u => u.UserId)

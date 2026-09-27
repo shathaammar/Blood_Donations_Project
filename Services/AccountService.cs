@@ -37,7 +37,7 @@ namespace Blood_Donations_Project.Services
             if (user == null)
                 return null;
 
-            var result = _passwordHasher.VerifyHashedPassword(user, user.Password, password);
+            var result = _passwordHasher.VerifyHashedPassword(user, user.Password!, password);
 
             // Existing behavior: only Failed is rejected; SuccessRehashNeeded is a
             // successful login and the stored hash is not upgraded.
