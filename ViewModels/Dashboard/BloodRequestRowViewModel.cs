@@ -2,7 +2,7 @@
 {
     /// <summary>
     /// Flat blood-request row (previously ViewModels.BloodRequestRowTable).
-    /// Used by the admin and hospital dashboards and by Admin/ManageBloodRequests.
+    /// Used by the admin and hospital dashboards.
     /// </summary>
     public class BloodRequestRowViewModel
     {

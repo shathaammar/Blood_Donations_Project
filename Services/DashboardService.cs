@@ -49,7 +49,7 @@ namespace Blood_Donations_Project.Services
             var totalBloodRequests = await _context.BloodRequests.CountAsync();
             var totalDonationRequests = await _context.DonationRequests.CountAsync();
 
-            // Same query, filter and ordering as Admin/ManageBloodRequests (read-only).
+            // Admin blood-request list: same query, filter and ordering as BloodRequestService (read-only).
             var bloodRequests = await _bloodRequestService.GetRequestsForAdminAsync(selectedStatus);
 
             var donationQuery = _context.DonationRequests.AsQueryable();

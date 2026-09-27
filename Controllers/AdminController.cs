@@ -1,12 +1,10 @@
 ﻿using Blood_Donations_Project.Common;
 using Blood_Donations_Project.Extensions;
 using Blood_Donations_Project.Filters;
-using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels.Donors;
 using Blood_Donations_Project.ViewModels.Inventory;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Blood_Donations_Project.ViewModels.Hospitals;
 
 namespace Blood_Donations_Project.Controllers
@@ -14,7 +12,6 @@ namespace Blood_Donations_Project.Controllers
     [SessionAuthorize(AppRoles.Admin)]
     public class AdminController : Controller
     {
-        private readonly BloodDonationContext _context;
         private readonly IInventoryService _inventoryService;
         private readonly IHospitalService _hospitalService;
         private readonly IDonorManagementService _donorService;
@@ -23,7 +20,6 @@ namespace Blood_Donations_Project.Controllers
         private readonly IDashboardService _dashboardService;
 
         public AdminController(
-            BloodDonationContext context,
             IInventoryService inventoryService,
             IHospitalService hospitalService,
             IDonorManagementService donorService,
@@ -31,7 +27,6 @@ namespace Blood_Donations_Project.Controllers
             IDonationRequestService donationRequestService,
             IDashboardService dashboardService)
         {
-            _context = context;
             _inventoryService = inventoryService;
             _hospitalService = hospitalService;
             _donorService = donorService;
@@ -206,78 +201,6 @@ namespace Blood_Donations_Project.Controllers
             return RedirectToAction(nameof(Hospitals));
         }
 
-        public async Task<IActionResult> ManageDonations()
-        {
-            var donations = await _context.Donations
-                .Include(d => d.User)
-                .ThenInclude(u => u.Donors)
-                .ThenInclude(d => d.BloodType)
-                .Include(d => d.ApprovedByNavigation)
-                .OrderByDescending(d => d.Id)
-                .ToListAsync();
-
-            return View(donations);
-        }
-
-        [HttpPost]
-        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
-        public async Task<IActionResult> ApproveDonation(int id)
-        {
-            var adminIdStr = HttpContext.Session.GetString("UserId");
-            if(!int.TryParse(adminIdStr, out var adminId))
-                return Json(new {success = false, message = "Not authorized" });
-
-            var donation = await _context.Donations.FindAsync(id);
-            if (donation == null)
-                return Json(new { success = false, message = "Donation not found" });
-
-            donation.Status = "Approved";
-            donation.ApprovedBy = adminId;
-            donation.DonationDate = DateOnly.FromDateTime(DateTime.Now);
-
-            var donor = await _context.Donors.FirstOrDefaultAsync(d => d.UserId == donation.UserId);
-            if(donor != null)
-            {
-                donor.LastDonationDate = DateOnly.FromDateTime(DateTime.Now);
-            }
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Donation approved successfully" });                
-        }
-
-        [HttpPost]
-        [SessionAuthorize(AppRoles.Admin, Ajax = true)]
-        public async Task<IActionResult> RejectDonation(int id)
-        {
-            var adminIdStr = HttpContext.Session.GetString("UserId");
-            if (!int.TryParse(adminIdStr, out var adminId))
-                return Json(new { success = false, message = "Not authorized" });
-
-            var donation = await _context.Donations.FindAsync(id);
-            if (donation == null)
-                return Json(new { success = false, message = "Donation not found" });
-
-            donation.Status = "Rejected";
-            donation.ApprovedBy = adminId;
-
-            await _context.SaveChangesAsync();
-
-            return Json(new { success = true, message = "Donation rejected" });
-        }
-
-        // Manage Blood Requests
-        public async Task<IActionResult> ManageBloodRequests(string status = "Pending")
-        {
-            status = (status ?? "Pending").Trim();
-
-            var requests = await _bloodRequestService.GetRequestsForAdminAsync(status);
-
-            ViewBag.SelectedStatus = status;
-            return View(requests);
-        }
-
-
         [HttpPost]
         [SessionAuthorize(AppRoles.Admin, Ajax = true)]
         public async Task<IActionResult> ApproveBloodRequest(int id)
@@ -332,31 +255,6 @@ namespace Blood_Donations_Project.Controllers
 
             var result = await _donationRequestService.RejectRequestAsync(id, adminId);
             return Json(new { success = result.Success, message = result.Message });
-        }
-
-        public async Task<IActionResult> Statistics()
-        {
-            var bloodTypeStats = await _context.Donors
-                .Where(d => d.BloodType != null)
-                .GroupBy(d => d.BloodType!.TypeName)
-                .Select(g => new
-                {
-                    BloodType = g.Key,
-                    Count = g.Count()
-                })
-                .ToListAsync();
-
-            ViewBag.BloodTypeStats = bloodTypeStats;
-
-            ViewBag.TotalDonations = await _context.Donations.CountAsync(d => d.Status == "Approved");
-            ViewBag.PendingDonations = await _context.Donations.CountAsync(d => d.Status == "Pending");
-            ViewBag.RejectedDonations = await _context.Donations.CountAsync(d => d.Status == "Rejected");
-
-            ViewBag.ApprovedRequests = await _context.BloodRequests.CountAsync(br => br.Status == "Approved");
-            ViewBag.PendingRequests = await _context.BloodRequests.CountAsync(br => br.Status == "Pending");
-            ViewBag.RejectedRequests = await _context.BloodRequests.CountAsync(br => br.Status == "Rejected");
-
-            return View();
         }
 
         // Blood Availability Management
