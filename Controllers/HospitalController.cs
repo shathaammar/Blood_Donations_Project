@@ -4,7 +4,6 @@ using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Services;
 using Blood_Donations_Project.ViewModels.BloodRequests;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Blood_Donations_Project.Controllers
 {

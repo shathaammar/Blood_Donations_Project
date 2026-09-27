@@ -3,13 +3,10 @@ using Blood_Donations_Project.Extensions;
 using Blood_Donations_Project.Filters;
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
-using Blood_Donations_Project.ViewModels;
 using Blood_Donations_Project.ViewModels.Donors;
 using Blood_Donations_Project.ViewModels.Inventory;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
 using Blood_Donations_Project.ViewModels.Hospitals;
 
 namespace Blood_Donations_Project.Controllers
