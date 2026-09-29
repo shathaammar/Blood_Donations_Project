@@ -28,7 +28,8 @@ namespace Blood_Donations_Project.Services
 
                 await SeedRoles(context, logger);
 
-                await SeedAdminUser(context, logger);
+                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                await SeedAdminUser(context, logger, configuration["Seed:AdminPassword"]);
 
                 await SeedBloodTypes(context, logger);
 
@@ -109,7 +110,7 @@ namespace Blood_Donations_Project.Services
             }
         }
 
-        private static async Task SeedAdminUser(BloodDonationContext context, ILogger logger)
+        private static async Task SeedAdminUser(BloodDonationContext context, ILogger logger, string? adminPassword)
         {
             try
             {
@@ -120,6 +121,12 @@ namespace Blood_Donations_Project.Services
                 if (adminExists)
                 {
                     logger.LogInformation($"Admin user already exists ({adminEmail}). Skipping...");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(adminPassword))
+                {
+                    logger.LogWarning("Seed:AdminPassword is not configured. Skipping admin user creation.");
                     return;
                 }
 
@@ -145,14 +152,13 @@ namespace Blood_Donations_Project.Services
                     Address = "Admin Office"
                 };
 
-                adminUser.Password = passwordHasher.HashPassword(adminUser, "Admin@123");
+                adminUser.Password = passwordHasher.HashPassword(adminUser, adminPassword);
 
                 await context.Users.AddAsync(adminUser);
                 await context.SaveChangesAsync();
 
                 logger.LogInformation("Admin user created successfully!");
                 logger.LogInformation($"   Email: {adminEmail}");
-                logger.LogInformation($"   Password: Admin@123");
             }
             catch (Exception ex)
             {

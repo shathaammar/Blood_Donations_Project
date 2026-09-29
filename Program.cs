@@ -1,3 +1,4 @@
+using Blood_Donations_Project.Extensions;
 using Blood_Donations_Project.Models;
 using Blood_Donations_Project.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -47,7 +48,9 @@ namespace Blood_Donations_Project
                 options.Cookie.SameSite = SameSiteMode.Lax;
             });
 
-            // JWT Authentication
+            // JWT Authentication (the signing key comes from configuration, never from source)
+            var jwtKey = builder.Configuration.GetRequiredJwtKey();
+
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
@@ -60,7 +63,7 @@ namespace Blood_Donations_Project
                         ValidIssuer = builder.Configuration["Jwt:Issuer"],
                         ValidAudience = builder.Configuration["Jwt:Audience"],
                         IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                            Encoding.UTF8.GetBytes(jwtKey))
                     };
 
                     options.Events = new JwtBearerEvents
