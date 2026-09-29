@@ -4,6 +4,8 @@ using Blood_Donations_Project.ViewModels.Account;
 using Blood_Donations_Project.ViewModels.Shared;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Blood_Donations_Project.Services
 {
@@ -141,12 +143,14 @@ namespace Blood_Donations_Project.Services
             if (oldTokens.Any())
                 _context.PasswordReset.RemoveRange(oldTokens);
 
-            var token = Guid.NewGuid().ToString("N");
+            // 256-bit token from a cryptographic RNG. Only its SHA-256 hash is stored,
+            // so a leaked PasswordReset table cannot be used to reset passwords.
+            var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
 
             _context.PasswordReset.Add(new PasswordReset
             {
                 UserId = user.UserId,
-                Token = token,
+                Token = HashResetToken(token),
                 ExpiresAt = DateTime.UtcNow.AddMinutes(30),
                 Used = false
             });
@@ -171,10 +175,12 @@ namespace Blood_Donations_Project.Services
             if (user == null)
                 return ServiceResult.Fail("Invalid reset link.");
 
+            var tokenHash = HashResetToken(model.Token);
+
             var tokenRow = await _context.PasswordReset
                 .FirstOrDefaultAsync(t =>
                     t.UserId == user.UserId &&
-                    t.Token == model.Token &&
+                    t.Token == tokenHash &&
                     !t.Used);
 
             if (tokenRow == null || tokenRow.ExpiresAt < DateTime.UtcNow)
@@ -189,5 +195,9 @@ namespace Blood_Donations_Project.Services
 
             return ServiceResult.Ok("Password reset successfully. Please login.");
         }
+
+        // Stored form of a reset token: lowercase hex SHA-256 (64 chars; fits the existing Token column).
+        private static string HashResetToken(string token)
+            => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
     }
 }
